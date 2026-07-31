@@ -1,0 +1,29 @@
+.scroll-top {
+  position: fixed;
+  bottom: 26px;
+  right: 26px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  color: #fff;
+  font-size: 1.2rem;
+  display: grid;
+  place-items: center;
+  box-shadow: var(--shadow-primary);
+  opacity: 0;
+  transform: translateY(16px);
+  pointer-events: none;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+  z-index: 900;
+}
+
+.scroll-top--visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.scroll-top:hover {
+  transform: translateY(-4px);
+}
