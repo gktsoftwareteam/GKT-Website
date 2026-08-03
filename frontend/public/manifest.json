@@ -1,0 +1,15 @@
+{
+  "short_name": "GKT Technology",
+  "name": "GKT Technology - Software, Web, Mobile, Cloud & AI Solutions",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#0D6EFD",
+  "background_color": "#FFFFFF"
+}
