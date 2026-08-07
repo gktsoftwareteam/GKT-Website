@@ -37,7 +37,7 @@ function Admin() {
         // CHECK API URL
         // =================================================
 
-        if (!API_URL) {
+        if (!REACT_APP_API_URL) {
             Swal.fire({
                 title: "Configuration Error",
                 text:
@@ -84,7 +84,7 @@ function Admin() {
             // =================================================
 
             const response = await axios.post(
-                `${API_URL}/api/admin/login`,
+                `${REACT_APP_API_URL}/api/admin/login`,
                 {
                     email: email.trim(),
                     password: password,
