@@ -136,7 +136,7 @@ function Contact() {
         // CHECK API URL
         // =================================================
 
-        if (!API_URL) {
+        if (!REACT_APP_API_URL) {
             console.error(
                 "REACT_APP_API_URL is not configured."
             );
@@ -159,7 +159,7 @@ function Contact() {
             // =================================================
 
             const response = await axios.post(
-                `${API_URL}/api/enquiries`,
+                `${REACT_APP_API_URL}/api/enquiries`,
                 {
                     name: form.name.trim(),
                     email: form.email.trim(),
