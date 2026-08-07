@@ -4,9 +4,20 @@ import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import "../css/analytics.css";
 
-const API_URL = process.env.REACT_APP_API_URL;
+// =====================================================
+// API URL
+// =====================================================
+
+const API_URL =
+    process.env.REACT_APP_API_URL || "http://127.0.0.1:8000";
+
+
+// =====================================================
+// ANALYTICS COMPONENT
+// =====================================================
 
 function Analytics() {
+
     const [analytics, setAnalytics] = useState({
         totalEnquiries: 0,
         totalClients: 0,
@@ -28,16 +39,35 @@ function Analytics() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
+
+    // =====================================================
+    // FETCH ANALYTICS
+    // =====================================================
+
     const fetchAnalytics = async () => {
+
         try {
+
             setLoading(true);
             setError("");
 
-            axios.get(`${API_URL}/api/analytics`)
+            const token = localStorage.getItem("token");
+
+            const response = await axios.get(
+                `${API_URL}/api/analytics`,
+                {
+                    headers: token
+                        ? {
+                            Authorization: `Bearer ${token}`,
+                        }
+                        : {},
+                }
+            );
 
             const data = response.data || {};
 
             setAnalytics({
+
                 totalEnquiries:
                     data.totalEnquiries ??
                     data.total_enquiries ??
@@ -96,31 +126,46 @@ function Analytics() {
                     Array.isArray(data.monthlyEnquiries)
                         ? data.monthlyEnquiries
                         : Array.isArray(data.monthly_enquiries)
-                        ? data.monthly_enquiries
-                        : [],
+                            ? data.monthly_enquiries
+                            : [],
             });
 
         } catch (err) {
-            console.error("Analytics Error:", err);
+
+            console.error(
+                "Analytics Error:",
+                err.response?.data || err.message
+            );
 
             setError(
                 err.response?.data?.detail ||
                 "Unable to load analytics data."
             );
+
         } finally {
+
             setLoading(false);
+
         }
     };
 
 
+    // =====================================================
+    // LOAD ANALYTICS
+    // =====================================================
+
     useEffect(() => {
+
         fetchAnalytics();
+
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+
     }, []);
 
 
-    /* =====================================================
-       CALCULATIONS
-    ===================================================== */
+    // =====================================================
+    // CALCULATIONS
+    // =====================================================
 
     const enquiryConversionRate =
         analytics.totalEnquiries > 0
@@ -137,6 +182,16 @@ function Analytics() {
             ? Math.round(
                 (analytics.completedEnquiries /
                     analytics.totalEnquiries) *
+                100
+            )
+            : 0;
+
+
+    const projectCompletionRate =
+        analytics.totalProjects > 0
+            ? Math.round(
+                (analytics.completedProjects /
+                    analytics.totalProjects) *
                 100
             )
             : 0;
@@ -159,7 +214,12 @@ function Analytics() {
             : 1;
 
 
+    // =====================================================
+    // MONTH NAME
+    // =====================================================
+
     const getMonthName = (item) => {
+
         if (item.month) {
             return item.month;
         }
@@ -169,20 +229,32 @@ function Analytics() {
         }
 
         return "";
+
     };
 
 
+    // =====================================================
+    // MONTH VALUE
+    // =====================================================
+
     const getMonthValue = (item) => {
+
         return Number(
             item.count ??
             item.value ??
             item.total ??
             0
         );
+
     };
 
 
+    // =====================================================
+    // FORMAT REVENUE
+    // =====================================================
+
     const formatRevenue = (value) => {
+
         const amount = Number(value) || 0;
 
         if (amount >= 10000000) {
@@ -198,8 +270,13 @@ function Analytics() {
         }
 
         return `₹${amount.toLocaleString("en-IN")}`;
+
     };
 
+
+    // =====================================================
+    // RENDER
+    // =====================================================
 
     return (
         <>
@@ -220,28 +297,43 @@ function Analytics() {
                         <div className="analytics-header">
 
                             <div>
+
                                 <span className="analytics-eyebrow">
                                     BUSINESS OVERVIEW
                                 </span>
 
-                                <h2>Analytics</h2>
+                                <h2>
+                                    Analytics
+                                </h2>
 
                                 <p>
                                     Track your enquiries, clients,
                                     projects and business performance.
                                 </p>
+
                             </div>
+
 
                             <button
                                 className="refresh-btn"
                                 onClick={fetchAnalytics}
                                 disabled={loading}
                             >
-                                <span className={loading ? "spin" : ""}>
+
+                                <span
+                                    className={
+                                        loading
+                                            ? "spin"
+                                            : ""
+                                    }
+                                >
                                     ↻
                                 </span>
 
-                                {loading ? "Refreshing..." : "Refresh"}
+                                {loading
+                                    ? "Refreshing..."
+                                    : "Refresh"}
+
                             </button>
 
                         </div>
@@ -252,21 +344,33 @@ function Analytics() {
                         ================================================= */}
 
                         {error && (
+
                             <div className="analytics-error">
-                                <div className="error-icon">!</div>
+
+                                <div className="error-icon">
+                                    !
+                                </div>
 
                                 <div>
+
                                     <strong>
                                         Unable to load analytics
                                     </strong>
 
-                                    <p>{error}</p>
+                                    <p>
+                                        {error}
+                                    </p>
+
                                 </div>
 
-                                <button onClick={fetchAnalytics}>
+                                <button
+                                    onClick={fetchAnalytics}
+                                >
                                     Try Again
                                 </button>
+
                             </div>
+
                         )}
 
 
@@ -276,9 +380,12 @@ function Analytics() {
 
                         <div className="analytics-kpis">
 
+                            {/* ENQUIRIES */}
+
                             <div className="kpi-card enquiries-card">
 
                                 <div className="kpi-top">
+
                                     <div className="kpi-icon">
                                         ✉
                                     </div>
@@ -286,15 +393,19 @@ function Analytics() {
                                     <span className="kpi-label">
                                         ENQUIRIES
                                     </span>
+
                                 </div>
 
                                 <div className="kpi-value">
+
                                     {loading
                                         ? "—"
                                         : analytics.totalEnquiries}
+
                                 </div>
 
                                 <div className="kpi-bottom">
+
                                     <span className="kpi-positive">
                                         {analytics.newEnquiries}
                                     </span>
@@ -302,14 +413,18 @@ function Analytics() {
                                     <span>
                                         new enquiries
                                     </span>
+
                                 </div>
 
                             </div>
 
 
+                            {/* CLIENTS */}
+
                             <div className="kpi-card clients-card">
 
                                 <div className="kpi-top">
+
                                     <div className="kpi-icon">
                                         👥
                                     </div>
@@ -317,15 +432,19 @@ function Analytics() {
                                     <span className="kpi-label">
                                         CLIENTS
                                     </span>
+
                                 </div>
 
                                 <div className="kpi-value">
+
                                     {loading
                                         ? "—"
                                         : analytics.totalClients}
+
                                 </div>
 
                                 <div className="kpi-bottom">
+
                                     <span className="kpi-positive">
                                         Active
                                     </span>
@@ -333,14 +452,18 @@ function Analytics() {
                                     <span>
                                         client accounts
                                     </span>
+
                                 </div>
 
                             </div>
 
 
+                            {/* PROJECTS */}
+
                             <div className="kpi-card projects-card">
 
                                 <div className="kpi-top">
+
                                     <div className="kpi-icon">
                                         ◈
                                     </div>
@@ -348,15 +471,19 @@ function Analytics() {
                                     <span className="kpi-label">
                                         PROJECTS
                                     </span>
+
                                 </div>
 
                                 <div className="kpi-value">
+
                                     {loading
                                         ? "—"
                                         : analytics.totalProjects}
+
                                 </div>
 
                                 <div className="kpi-bottom">
+
                                     <span className="kpi-progress">
                                         {analytics.activeProjects}
                                     </span>
@@ -364,14 +491,18 @@ function Analytics() {
                                     <span>
                                         active projects
                                     </span>
+
                                 </div>
 
                             </div>
 
 
+                            {/* REVENUE */}
+
                             <div className="kpi-card revenue-card">
 
                                 <div className="kpi-top">
+
                                     <div className="kpi-icon">
                                         ₹
                                     </div>
@@ -379,17 +510,21 @@ function Analytics() {
                                     <span className="kpi-label">
                                         REVENUE
                                     </span>
+
                                 </div>
 
                                 <div className="kpi-value">
+
                                     {loading
                                         ? "—"
                                         : formatRevenue(
                                             analytics.revenue
                                         )}
+
                                 </div>
 
                                 <div className="kpi-bottom">
+
                                     <span className="kpi-revenue">
                                         Current
                                     </span>
@@ -397,6 +532,7 @@ function Analytics() {
                                     <span>
                                         recorded revenue
                                     </span>
+
                                 </div>
 
                             </div>
@@ -405,20 +541,19 @@ function Analytics() {
 
 
                         {/* =================================================
-                            MAIN ANALYTICS GRID
+                            MAIN GRID
                         ================================================= */}
 
                         <div className="analytics-grid">
 
-                            {/* =============================================
-                                MONTHLY CHART
-                            ============================================= */}
+                            {/* MONTHLY ENQUIRIES */}
 
                             <div className="analytics-panel monthly-panel">
 
                                 <div className="panel-header">
 
                                     <div>
+
                                         <h3>
                                             Monthly Enquiries
                                         </h3>
@@ -427,6 +562,7 @@ function Analytics() {
                                             Enquiry activity throughout
                                             the year
                                         </p>
+
                                     </div>
 
                                     <span className="panel-badge">
@@ -441,10 +577,12 @@ function Analytics() {
                                     {analytics.monthlyEnquiries.length === 0 ? (
 
                                         <div className="chart-empty">
+
                                             <div>
                                                 No monthly enquiry data
                                                 available
                                             </div>
+
                                         </div>
 
                                     ) : (
@@ -464,6 +602,7 @@ function Analytics() {
                                                     );
 
                                                 return (
+
                                                     <div
                                                         className="chart-column"
                                                         key={
@@ -482,7 +621,8 @@ function Analytics() {
                                                             <div
                                                                 className="chart-bar"
                                                                 style={{
-                                                                    height: `${height}%`,
+                                                                    height:
+                                                                        `${height}%`,
                                                                 }}
                                                             />
 
@@ -493,9 +633,12 @@ function Analytics() {
                                                         </span>
 
                                                     </div>
+
                                                 );
+
                                             }
                                         )
+
                                     )}
 
                                 </div>
@@ -503,15 +646,14 @@ function Analytics() {
                             </div>
 
 
-                            {/* =============================================
-                                ENQUIRY OVERVIEW
-                            ============================================= */}
+                            {/* ENQUIRY OVERVIEW */}
 
                             <div className="analytics-panel">
 
                                 <div className="panel-header">
 
                                     <div>
+
                                         <h3>
                                             Enquiry Overview
                                         </h3>
@@ -519,6 +661,7 @@ function Analytics() {
                                         <p>
                                             Current enquiry status
                                         </p>
+
                                     </div>
 
                                 </div>
@@ -614,15 +757,14 @@ function Analytics() {
 
                         <div className="analytics-bottom-grid">
 
-                            {/* =============================================
-                                CONVERSION
-                            ============================================= */}
+                            {/* CONVERSION */}
 
                             <div className="analytics-panel conversion-panel">
 
                                 <div className="panel-header">
 
                                     <div>
+
                                         <h3>
                                             Conversion Rate
                                         </h3>
@@ -630,6 +772,7 @@ function Analytics() {
                                         <p>
                                             Enquiries converted into clients
                                         </p>
+
                                     </div>
 
                                 </div>
@@ -644,7 +787,9 @@ function Analytics() {
                                                 `${enquiryConversionRate * 3.6}deg`,
                                         }}
                                     >
+
                                         <div className="conversion-inner">
+
                                             <strong>
                                                 {enquiryConversionRate}%
                                             </strong>
@@ -652,13 +797,16 @@ function Analytics() {
                                             <span>
                                                 Conversion
                                             </span>
+
                                         </div>
+
                                     </div>
 
 
                                     <div className="conversion-details">
 
                                         <div>
+
                                             <span>
                                                 Total enquiries
                                             </span>
@@ -666,9 +814,12 @@ function Analytics() {
                                             <strong>
                                                 {analytics.totalEnquiries}
                                             </strong>
+
                                         </div>
 
+
                                         <div>
+
                                             <span>
                                                 Converted
                                             </span>
@@ -676,6 +827,7 @@ function Analytics() {
                                             <strong>
                                                 {analytics.convertedEnquiries}
                                             </strong>
+
                                         </div>
 
                                     </div>
@@ -685,15 +837,14 @@ function Analytics() {
                             </div>
 
 
-                            {/* =============================================
-                                PROJECT OVERVIEW
-                            ============================================= */}
+                            {/* PROJECT OVERVIEW */}
 
                             <div className="analytics-panel project-overview">
 
                                 <div className="panel-header">
 
                                     <div>
+
                                         <h3>
                                             Project Overview
                                         </h3>
@@ -701,6 +852,7 @@ function Analytics() {
                                         <p>
                                             Current project distribution
                                         </p>
+
                                     </div>
 
                                 </div>
@@ -764,15 +916,14 @@ function Analytics() {
                             </div>
 
 
-                            {/* =============================================
-                                PERFORMANCE
-                            ============================================= */}
+                            {/* PERFORMANCE */}
 
                             <div className="analytics-panel performance-panel">
 
                                 <div className="panel-header">
 
                                     <div>
+
                                         <h3>
                                             Performance
                                         </h3>
@@ -780,14 +931,18 @@ function Analytics() {
                                         <p>
                                             Overall business indicators
                                         </p>
+
                                     </div>
 
                                 </div>
 
 
+                                {/* ENQUIRY COMPLETION */}
+
                                 <div className="performance-item">
 
                                     <div className="performance-top">
+
                                         <span>
                                             Enquiry completion
                                         </span>
@@ -795,23 +950,30 @@ function Analytics() {
                                         <strong>
                                             {enquiryCompletionRate}%
                                         </strong>
+
                                     </div>
 
                                     <div className="performance-track">
+
                                         <div
                                             className="performance-fill blue"
                                             style={{
-                                                width: `${enquiryCompletionRate}%`,
+                                                width:
+                                                    `${enquiryCompletionRate}%`,
                                             }}
                                         />
+
                                     </div>
 
                                 </div>
 
 
+                                {/* CLIENT CONVERSION */}
+
                                 <div className="performance-item">
 
                                     <div className="performance-top">
+
                                         <span>
                                             Client conversion
                                         </span>
@@ -819,54 +981,50 @@ function Analytics() {
                                         <strong>
                                             {enquiryConversionRate}%
                                         </strong>
+
                                     </div>
 
                                     <div className="performance-track">
+
                                         <div
                                             className="performance-fill green"
                                             style={{
-                                                width: `${enquiryConversionRate}%`,
+                                                width:
+                                                    `${enquiryConversionRate}%`,
                                             }}
                                         />
+
                                     </div>
 
                                 </div>
 
 
+                                {/* PROJECT COMPLETION */}
+
                                 <div className="performance-item">
 
                                     <div className="performance-top">
+
                                         <span>
                                             Project completion
                                         </span>
 
                                         <strong>
-                                            {analytics.totalProjects > 0
-                                                ? Math.round(
-                                                    (analytics.completedProjects /
-                                                        analytics.totalProjects) *
-                                                    100
-                                                )
-                                                : 0}
-                                            %
+                                            {projectCompletionRate}%
                                         </strong>
+
                                     </div>
 
                                     <div className="performance-track">
+
                                         <div
                                             className="performance-fill purple"
                                             style={{
-                                                width: `${
-                                                    analytics.totalProjects > 0
-                                                        ? Math.round(
-                                                            (analytics.completedProjects /
-                                                                analytics.totalProjects) *
-                                                            100
-                                                        )
-                                                        : 0
-                                                }%`,
+                                                width:
+                                                    `${projectCompletionRate}%`,
                                             }}
                                         />
+
                                     </div>
 
                                 </div>
@@ -880,6 +1038,7 @@ function Analytics() {
                 </div>
 
             </div>
+
         </>
     );
 }
