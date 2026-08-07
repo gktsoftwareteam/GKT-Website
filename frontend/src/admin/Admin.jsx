@@ -9,7 +9,7 @@ import Swal from "sweetalert2";
 // API URL
 // =====================================================
 
-const API_URL = process.env.REACT_APP_API_URL || "";
+const API_URL = process.env.API_URL || "";
 
 // =====================================================
 // ADMIN LOGIN
@@ -37,7 +37,7 @@ function Admin() {
         // CHECK API URL
         // =================================================
 
-        if (!REACT_APP_API_URL) {
+        if (!API_URL) {
             Swal.fire({
                 title: "Configuration Error",
                 text:
@@ -46,7 +46,7 @@ function Admin() {
             });
 
             console.error(
-                "REACT_APP_API_URL is not configured."
+                "API_URL is not configured."
             );
 
             return;
@@ -84,7 +84,7 @@ function Admin() {
             // =================================================
 
             const response = await axios.post(
-                `${REACT_APP_API_URL}/api/admin/login`,
+                `${API_URL}/api/admin/login`,
                 {
                     email: email.trim(),
                     password: password,
