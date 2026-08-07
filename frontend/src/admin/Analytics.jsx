@@ -33,9 +33,7 @@ function Analytics() {
             setLoading(true);
             setError("");
 
-            const response = await axios.get(
-                `${REACT_APP_API_URL}/api/analytics`
-            );
+            axios.get(`${API_URL}/api/analytics`)
 
             const data = response.data || {};
 
