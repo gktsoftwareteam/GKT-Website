@@ -1,334 +1,542 @@
 import React, { useState } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
-import useReveal from "./useReveal";
-
-import {
-  MailIcon,
-  PhoneIcon,
-  PinIcon,
-  ArrowRightIcon,
-  CheckIcon,
-} from "./Icons";
 
 import "../css/contact.css";
 
-const API_URL =
-  process.env.REACT_APP_API_URL || "http://127.0.0.1:8000/api";
+// =====================================================
+// API URL
+// =====================================================
 
-const INITIAL_STATE = {
-  name: "",
-  email: "",
-  phone: "",
-  service: "Software Development",
-  message: "",
+const API_URL = process.env.REACT_APP_API_URL || "";
+
+// =====================================================
+// INITIAL FORM
+// =====================================================
+
+const INITIAL_FORM = {
+    name: "",
+    email: "",
+    phone: "",
+    service: "Software Development",
+    message: "",
 };
 
+// =====================================================
+// CONTACT COMPONENT
+// =====================================================
+
 function Contact() {
-  const ref = useReveal();
+    const [form, setForm] = useState({
+        ...INITIAL_FORM,
+    });
 
-  const [form, setForm] = useState(INITIAL_STATE);
-  const [errors, setErrors] = useState({});
-  const [submitted, setSubmitted] = useState(false);
-  const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+    // =====================================================
+    // HANDLE INPUT
+    // =====================================================
 
-    setForm((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
+    const handleChange = (e) => {
+        const { name, value } = e.target;
 
-    setErrors((previous) => ({
-      ...previous,
-      [name]: "",
-    }));
-  };
+        setForm((previous) => ({
+            ...previous,
+            [name]: value,
+        }));
+    };
 
-  const validate = () => {
-    const nextErrors = {};
+    // =====================================================
+    // VALIDATE FORM
+    // =====================================================
 
-    if (!form.name.trim()) {
-      nextErrors.name = "Please enter your name.";
-    }
+    const validateForm = () => {
+        if (!form.name.trim()) {
+            Swal.fire({
+                icon: "warning",
+                title: "Name Required",
+                text: "Please enter your name.",
+            });
 
-    if (!form.email.trim()) {
-      nextErrors.email = "Please enter your email.";
-    } else if (
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)
-    ) {
-      nextErrors.email = "Enter a valid email address.";
-    }
+            return false;
+        }
 
-    if (!form.phone.trim()) {
-      nextErrors.phone = "Please enter your contact number.";
-    }
+        if (!form.email.trim()) {
+            Swal.fire({
+                icon: "warning",
+                title: "Email Required",
+                text: "Please enter your email address.",
+            });
 
-    if (!form.message.trim()) {
-      nextErrors.message =
-        "Tell us a little about your project.";
-    }
+            return false;
+        }
 
-    return nextErrors;
-  };
+        const emailRegex =
+            /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+        if (!emailRegex.test(form.email.trim())) {
+            Swal.fire({
+                icon: "warning",
+                title: "Invalid Email",
+                text: "Please enter a valid email address.",
+            });
 
-    const nextErrors = validate();
+            return false;
+        }
 
-    if (Object.keys(nextErrors).length > 0) {
-      setErrors(nextErrors);
-      return;
-    }
+        if (!form.phone.trim()) {
+            Swal.fire({
+                icon: "warning",
+                title: "Phone Required",
+                text: "Please enter your phone number.",
+            });
 
-    setErrors({});
-    setLoading(true);
+            return false;
+        }
 
-    try {
-      const response = await axios.post(
-        `${API_URL}/enquiries`,
-        form
-      );
+        if (!form.service.trim()) {
+            Swal.fire({
+                icon: "warning",
+                title: "Service Required",
+                text: "Please select a service.",
+            });
 
-      console.log("Enquiry response:", response.data);
+            return false;
+        }
 
-      setSubmitted(true);
-      setForm(INITIAL_STATE);
+        if (!form.message.trim()) {
+            Swal.fire({
+                icon: "warning",
+                title: "Message Required",
+                text: "Please enter your message.",
+            });
 
-      Swal.fire({
-        icon: "success",
-        title: "Enquiry Submitted!",
-        text: "Thank you. We will contact you shortly.",
-        confirmButtonText: "Great",
-      });
-    } catch (error) {
-      console.error(
-        "ENQUIRY ERROR:",
-        error.response?.data || error.message
-      );
+            return false;
+        }
 
-      Swal.fire({
-        icon: "error",
-        title: "Submission Failed",
-        text:
-          error.response?.data?.detail ||
-          "Unable to submit your enquiry. Please try again.",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+        return true;
+    };
 
-  return (
-    <section className="contact" ref={ref}>
-      <div className="container contact__grid">
+    // =====================================================
+    // SUBMIT FORM
+    // =====================================================
 
-        <div className="contact__info reveal">
-          <p className="eyebrow">Contact Us</p>
+    const handleSubmit = async (e) => {
+        e.preventDefault();
 
-          <h2>Let's build something worth shipping</h2>
+        if (loading) {
+            return;
+        }
 
-          <p>
-            Tell us about your product and timeline — we'll reply
-            with next steps and, if it's a fit, a free scoping call.
-          </p>
+        if (!validateForm()) {
+            return;
+        }
 
-          <ul className="contact__details">
+        // =================================================
+        // CHECK API URL
+        // =================================================
 
-            <li>
-              <span className="contact__icon">
-                <MailIcon />
-              </span>
+        if (!API_URL) {
+            console.error(
+                "REACT_APP_API_URL is not configured."
+            );
 
-              <div>
-                <strong>Email</strong>
-                <span>
-                  gktsoftwaresolution@gmail.com
-                </span>
-              </div>
-            </li>
+            Swal.fire({
+                icon: "error",
+                title: "Configuration Error",
+                text:
+                    "Backend API URL is not configured. Please contact the administrator.",
+            });
 
-            <li>
-              <span className="contact__icon">
-                <PhoneIcon />
-              </span>
+            return;
+        }
 
-              <div>
-                <strong>Phone</strong>
-                <span>+91 8778341227</span>
-              </div>
-            </li>
+        try {
+            setLoading(true);
 
-            <li>
-              <span className="contact__icon">
-                <PinIcon />
-              </span>
+            // =================================================
+            // SEND ENQUIRY
+            // =================================================
 
-              <div>
-                <strong>Work Place</strong>
-                <span>
-                  Avadi, Chennai-600054, TamilNadu
-                </span>
-              </div>
-            </li>
+            const response = await axios.post(
+                `${API_URL}/api/enquiries`,
+                {
+                    name: form.name.trim(),
+                    email: form.email.trim(),
+                    phone: form.phone.trim(),
+                    service: form.service.trim(),
+                    message: form.message.trim(),
+                }
+            );
 
-          </ul>
-        </div>
+            console.log(
+                "ENQUIRY RESPONSE:",
+                response.data
+            );
 
-        <form
-          className="contact__form reveal reveal-delay-1"
-          onSubmit={handleSubmit}
-          noValidate
+            // =================================================
+            // SUCCESS
+            // =================================================
+
+            Swal.fire({
+                icon: "success",
+                title: "Enquiry Submitted!",
+                text:
+                    "Thank you for contacting us. Our team will get back to you soon.",
+                confirmButtonText: "OK",
+            });
+
+            // =================================================
+            // RESET FORM
+            // =================================================
+
+            setForm({
+                ...INITIAL_FORM,
+            });
+        } catch (error) {
+            console.error(
+                "CONTACT FORM ERROR:",
+                error.response?.data || error.message
+            );
+
+            let errorMessage =
+                "Unable to submit your enquiry. Please try again.";
+
+            if (error.response?.data?.detail) {
+                if (
+                    Array.isArray(
+                        error.response.data.detail
+                    )
+                ) {
+                    errorMessage =
+                        error.response.data.detail
+                            .map((item) =>
+                                item.msg
+                                    ? item.msg
+                                    : String(item)
+                            )
+                            .join(", ");
+                } else {
+                    errorMessage =
+                        error.response.data.detail;
+                }
+            }
+
+            Swal.fire({
+                icon: "error",
+                title: "Submission Failed",
+                text: errorMessage,
+                confirmButtonText: "Try Again",
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // =====================================================
+    // RENDER
+    // =====================================================
+
+    return (
+        <section
+            className="contact-section"
+            id="contact"
         >
+            <div className="contact-container">
 
-          {submitted && (
-            <div
-              className="contact__success"
-              role="status"
-            >
-              <CheckIcon />
-              Thanks — your message is in. We'll be in
-              touch within one business day.
+                {/* =================================================
+                    LEFT SIDE
+                ================================================= */}
+
+                <div className="contact-info">
+
+                    <span className="contact-eyebrow">
+                        GET IN TOUCH
+                    </span>
+
+                    <h2>
+                        Let's Build Something
+                        <span> Great Together.</span>
+                    </h2>
+
+                    <p>
+                        Have a project in mind or looking
+                        for the right technology solution?
+                        Send us your requirements and our
+                        team will get back to you.
+                    </p>
+
+                    {/* =============================================
+                        CONTACT DETAILS
+                    ============================================= */}
+
+                    <div className="contact-details">
+
+                        <div className="contact-detail-item">
+
+                            <div className="contact-detail-icon">
+                                ✉
+                            </div>
+
+                            <div>
+                                <span>Email</span>
+
+                                <strong>
+                                    info@gktsoftwaresolution.com
+                                </strong>
+                            </div>
+
+                        </div>
+
+                        <div className="contact-detail-item">
+
+                            <div className="contact-detail-icon">
+                                ☎
+                            </div>
+
+                            <div>
+                                <span>Phone</span>
+
+                                <strong>
+                                    +91 XXXXX XXXXX
+                                </strong>
+                            </div>
+
+                        </div>
+
+                        <div className="contact-detail-item">
+
+                            <div className="contact-detail-icon">
+                                📍
+                            </div>
+
+                            <div>
+                                <span>Location</span>
+
+                                <strong>
+                                    Tamil Nadu, India
+                                </strong>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                {/* =================================================
+                    CONTACT FORM
+                ================================================= */}
+
+                <div className="contact-form-wrapper">
+
+                    <form
+                        className="contact-form"
+                        onSubmit={handleSubmit}
+                        noValidate
+                    >
+
+                        <div className="form-title">
+                            <h3>
+                                Send Us an Enquiry
+                            </h3>
+
+                            <p>
+                                Tell us about your project
+                                and requirements.
+                            </p>
+                        </div>
+
+                        {/* =========================================
+                            NAME
+                        ========================================= */}
+
+                        <div className="form-group">
+
+                            <label htmlFor="contact-name">
+                                Full Name
+                            </label>
+
+                            <input
+                                id="contact-name"
+                                type="text"
+                                name="name"
+                                value={form.name}
+                                onChange={handleChange}
+                                placeholder="Enter your name"
+                                autoComplete="name"
+                                disabled={loading}
+                                required
+                            />
+
+                        </div>
+
+                        {/* =========================================
+                            EMAIL
+                        ========================================= */}
+
+                        <div className="form-group">
+
+                            <label htmlFor="contact-email">
+                                Email Address
+                            </label>
+
+                            <input
+                                id="contact-email"
+                                type="email"
+                                name="email"
+                                value={form.email}
+                                onChange={handleChange}
+                                placeholder="Enter your email"
+                                autoComplete="email"
+                                disabled={loading}
+                                required
+                            />
+
+                        </div>
+
+                        {/* =========================================
+                            PHONE
+                        ========================================= */}
+
+                        <div className="form-group">
+
+                            <label htmlFor="contact-phone">
+                                Phone Number
+                            </label>
+
+                            <input
+                                id="contact-phone"
+                                type="tel"
+                                name="phone"
+                                value={form.phone}
+                                onChange={handleChange}
+                                placeholder="Enter your phone number"
+                                autoComplete="tel"
+                                disabled={loading}
+                                required
+                            />
+
+                        </div>
+
+                        {/* =========================================
+                            SERVICE
+                        ========================================= */}
+
+                        <div className="form-group">
+
+                            <label htmlFor="contact-service">
+                                Service
+                            </label>
+
+                            <select
+                                id="contact-service"
+                                name="service"
+                                value={form.service}
+                                onChange={handleChange}
+                                disabled={loading}
+                                required
+                            >
+                                <option value="Software Development">
+                                    Software Development
+                                </option>
+
+                                <option value="Web Development">
+                                    Web Development
+                                </option>
+
+                                <option value="Mobile App Development">
+                                    Mobile App Development
+                                </option>
+
+                                <option value="UI/UX Design">
+                                    UI/UX Design
+                                </option>
+
+                                <option value="Cloud Solutions">
+                                    Cloud Solutions
+                                </option>
+
+                                <option value="AI & Machine Learning">
+                                    AI & Machine Learning
+                                </option>
+
+                                <option value="Digital Marketing">
+                                    Digital Marketing
+                                </option>
+
+                                <option value="Other">
+                                    Other
+                                </option>
+                            </select>
+
+                        </div>
+
+                        {/* =========================================
+                            MESSAGE
+                        ========================================= */}
+
+                        <div className="form-group">
+
+                            <label htmlFor="contact-message">
+                                Message
+                            </label>
+
+                            <textarea
+                                id="contact-message"
+                                name="message"
+                                value={form.message}
+                                onChange={handleChange}
+                                placeholder="Tell us about your project..."
+                                rows="6"
+                                disabled={loading}
+                                required
+                            />
+
+                        </div>
+
+                        {/* =========================================
+                            SUBMIT
+                        ========================================= */}
+
+                        <button
+                            type="submit"
+                            className="contact-submit-btn"
+                            disabled={loading}
+                        >
+                            {loading ? (
+                                <>
+                                    <span className="submit-spinner">
+                                        ⟳
+                                    </span>
+
+                                    Sending...
+                                </>
+                            ) : (
+                                <>
+                                    Send Enquiry
+                                    <span>→</span>
+                                </>
+                            )}
+                        </button>
+
+                        {/* =========================================
+                            PRIVACY TEXT
+                        ========================================= */}
+
+                        <p className="contact-form-note">
+                            Your information is safe with us.
+                            We will only use your details to
+                            respond to your enquiry.
+                        </p>
+
+                    </form>
+
+                </div>
+
             </div>
-          )}
-
-          <div className="contact__field">
-
-            <label htmlFor="name">
-              Full name
-            </label>
-
-            <input
-              id="name"
-              name="name"
-              type="text"
-              value={form.name}
-              onChange={handleChange}
-              placeholder="Your full name"
-              aria-invalid={Boolean(errors.name)}
-            />
-
-            {errors.name && (
-              <span className="contact__error">
-                {errors.name}
-              </span>
-            )}
-
-          </div>
-
-          <div className="contact__field">
-
-            <label htmlFor="email">
-              Work email
-            </label>
-
-            <input
-              id="email"
-              name="email"
-              type="email"
-              value={form.email}
-              onChange={handleChange}
-              placeholder="you@company.com"
-              aria-invalid={Boolean(errors.email)}
-            />
-
-            {errors.email && (
-              <span className="contact__error">
-                {errors.email}
-              </span>
-            )}
-
-          </div>
-
-          <div className="contact__field">
-
-            <label htmlFor="phone">
-              Contact number
-            </label>
-
-            <input
-              id="phone"
-              name="phone"
-              type="tel"
-              value={form.phone}
-              onChange={handleChange}
-              placeholder="+91 9876543210"
-              aria-invalid={Boolean(errors.phone)}
-            />
-
-            {errors.phone && (
-              <span className="contact__error">
-                {errors.phone}
-              </span>
-            )}
-
-          </div>
-
-          <div className="contact__field">
-
-            <label htmlFor="service">
-              Service you need
-            </label>
-
-            <select
-              id="service"
-              name="service"
-              value={form.service}
-              onChange={handleChange}
-            >
-              <option>Software Development</option>
-              <option>Web Development</option>
-              <option>Mobile App Development</option>
-              <option>UI/UX Design</option>
-              <option>Cloud Solutions</option>
-              <option>Data Analytics</option>
-              <option>AI Solutions</option>
-              <option>IT Consulting</option>
-            </select>
-
-          </div>
-
-          <div className="contact__field">
-
-            <label htmlFor="message">
-              Project details
-            </label>
-
-            <textarea
-              id="message"
-              name="message"
-              rows="4"
-              value={form.message}
-              onChange={handleChange}
-              placeholder="What are you trying to build?"
-              aria-invalid={Boolean(errors.message)}
-            />
-
-            {errors.message && (
-              <span className="contact__error">
-                {errors.message}
-              </span>
-            )}
-
-          </div>
-
-          <button
-            type="submit"
-            className="btn btn-primary contact__submit"
-            disabled={loading}
-          >
-            {loading ? "Sending..." : "Send Message"}
-
-            {!loading && <ArrowRightIcon />}
-          </button>
-
-        </form>
-
-      </div>
-    </section>
-  );
+        </section>
+    );
 }
 
 export default Contact;
