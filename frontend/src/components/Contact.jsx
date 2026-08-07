@@ -9,7 +9,7 @@ import "../css/contact.css";
 // =====================================================
 
 const API_URL = (
-    process.env.REACT_APP_API_URL ||
+    process.env.API_URL ||
     "https://gkt-website.onrender.com"
 ).replace(/\/+$/, "");
 
@@ -149,10 +149,10 @@ function Contact() {
         // CHECK API URL
         // =================================================
 
-        if (!REACT_APP_API_URL) {
+        if (!API_URL) {
 
             console.error(
-                "REACT_APP_API_URL is not configured."
+                "API_URL is not configured."
             );
 
             Swal.fire({
@@ -171,7 +171,7 @@ function Contact() {
 
             console.log(
                 "Sending enquiry to:",
-                `${REACT_APP_API_URL}/api/enquiries`
+                `${API_URL}/api/enquiries`
             );
 
             // =================================================
@@ -179,7 +179,7 @@ function Contact() {
             // =================================================
 
             const response = await axios.post(
-                `${REACT_APP_API_URL}/api/enquiries`,
+                `${API_URL}/api/enquiries`,
                 {
                     name: form.name.trim(),
                     email: form.email.trim(),
