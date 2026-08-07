@@ -22,6 +22,13 @@ const login = async (e) => {
     password,
   }
 );
+
+    // Save JWT token
+    localStorage.setItem(
+      "token",
+      response.data.access_token
+    );
+
    Swal.fire({
   title: "Welcome!",
   text: "Login successful.",
