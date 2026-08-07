@@ -8,7 +8,10 @@ import "../css/contact.css";
 // API URL
 // =====================================================
 
-const API_URL = process.env.REACT_APP_API_URL || "";
+const API_URL = (
+    process.env.REACT_APP_API_URL ||
+    "https://gkt-website.onrender.com"
+).replace(/\/+$/, "");
 
 // =====================================================
 // INITIAL FORM
@@ -27,17 +30,19 @@ const INITIAL_FORM = {
 // =====================================================
 
 function Contact() {
+
     const [form, setForm] = useState({
         ...INITIAL_FORM,
     });
 
     const [loading, setLoading] = useState(false);
 
-    // =====================================================
+    // =================================================
     // HANDLE INPUT
-    // =====================================================
+    // =================================================
 
     const handleChange = (e) => {
+
         const { name, value } = e.target;
 
         setForm((previous) => ({
@@ -46,12 +51,14 @@ function Contact() {
         }));
     };
 
-    // =====================================================
+    // =================================================
     // VALIDATE FORM
-    // =====================================================
+    // =================================================
 
     const validateForm = () => {
+
         if (!form.name.trim()) {
+
             Swal.fire({
                 icon: "warning",
                 title: "Name Required",
@@ -62,6 +69,7 @@ function Contact() {
         }
 
         if (!form.email.trim()) {
+
             Swal.fire({
                 icon: "warning",
                 title: "Email Required",
@@ -75,6 +83,7 @@ function Contact() {
             /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
         if (!emailRegex.test(form.email.trim())) {
+
             Swal.fire({
                 icon: "warning",
                 title: "Invalid Email",
@@ -85,6 +94,7 @@ function Contact() {
         }
 
         if (!form.phone.trim()) {
+
             Swal.fire({
                 icon: "warning",
                 title: "Phone Required",
@@ -95,6 +105,7 @@ function Contact() {
         }
 
         if (!form.service.trim()) {
+
             Swal.fire({
                 icon: "warning",
                 title: "Service Required",
@@ -105,6 +116,7 @@ function Contact() {
         }
 
         if (!form.message.trim()) {
+
             Swal.fire({
                 icon: "warning",
                 title: "Message Required",
@@ -117,11 +129,12 @@ function Contact() {
         return true;
     };
 
-    // =====================================================
-    // SUBMIT FORM
-    // =====================================================
+    // =================================================
+    // SUBMIT ENQUIRY
+    // =================================================
 
     const handleSubmit = async (e) => {
+
         e.preventDefault();
 
         if (loading) {
@@ -136,7 +149,8 @@ function Contact() {
         // CHECK API URL
         // =================================================
 
-        if (!REACT_APP_API_URL) {
+        if (!API_URL) {
+
             console.error(
                 "REACT_APP_API_URL is not configured."
             );
@@ -145,27 +159,39 @@ function Contact() {
                 icon: "error",
                 title: "Configuration Error",
                 text:
-                    "Backend API URL is not configured. Please contact the administrator.",
+                    "Backend API URL is not configured.",
             });
 
             return;
         }
 
         try {
+
             setLoading(true);
 
+            console.log(
+                "Sending enquiry to:",
+                `${API_URL}/api/enquiries`
+            );
+
             // =================================================
-            // SEND ENQUIRY
+            // SEND TO FASTAPI
             // =================================================
 
             const response = await axios.post(
-                `${REACT_APP_API_URL}/api/enquiries`,
+                `${API_URL}/api/enquiries`,
                 {
                     name: form.name.trim(),
                     email: form.email.trim(),
                     phone: form.phone.trim(),
                     service: form.service.trim(),
                     message: form.message.trim(),
+                },
+                {
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    timeout: 15000,
                 }
             );
 
@@ -178,7 +204,7 @@ function Contact() {
             // SUCCESS
             // =================================================
 
-            Swal.fire({
+            await Swal.fire({
                 icon: "success",
                 title: "Enquiry Submitted!",
                 text:
@@ -187,39 +213,75 @@ function Contact() {
             });
 
             // =================================================
-            // RESET FORM
+            // RESET
             // =================================================
 
             setForm({
                 ...INITIAL_FORM,
             });
+
         } catch (error) {
+
             console.error(
                 "CONTACT FORM ERROR:",
-                error.response?.data || error.message
+                error
+            );
+
+            console.error(
+                "SERVER RESPONSE:",
+                error.response?.data
             );
 
             let errorMessage =
                 "Unable to submit your enquiry. Please try again.";
 
-            if (error.response?.data?.detail) {
-                if (
-                    Array.isArray(
+            // FastAPI validation error
+            if (
+                Array.isArray(
+                    error.response?.data?.detail
+                )
+            ) {
+
+                errorMessage =
+                    error.response.data.detail
+                        .map((item) =>
+                            item.msg ||
+                            String(item)
+                        )
+                        .join(", ");
+
+            }
+
+            // FastAPI normal error
+            else if (
+                error.response?.data?.detail
+            ) {
+
+                errorMessage =
+                    String(
                         error.response.data.detail
-                    )
-                ) {
-                    errorMessage =
-                        error.response.data.detail
-                            .map((item) =>
-                                item.msg
-                                    ? item.msg
-                                    : String(item)
-                            )
-                            .join(", ");
-                } else {
-                    errorMessage =
-                        error.response.data.detail;
-                }
+                    );
+
+            }
+
+            // Network error
+            else if (
+                error.code === "ERR_NETWORK"
+            ) {
+
+                errorMessage =
+                    "Cannot connect to the backend server. Please check whether the backend is running.";
+
+            }
+
+            // Timeout
+            else if (
+                error.code === "ECONNABORTED"
+            ) {
+
+                errorMessage =
+                    "The server took too long to respond. Please try again.";
+
             }
 
             Swal.fire({
@@ -228,20 +290,24 @@ function Contact() {
                 text: errorMessage,
                 confirmButtonText: "Try Again",
             });
+
         } finally {
+
             setLoading(false);
         }
     };
 
-    // =====================================================
+    // =================================================
     // RENDER
-    // =====================================================
+    // =================================================
 
     return (
+
         <section
             className="contact-section"
             id="contact"
         >
+
             <div className="contact-container">
 
                 {/* =================================================
@@ -259,16 +325,14 @@ function Contact() {
                         <span> Great Together.</span>
                     </h2>
 
-                    <p>
+                    <p className="contact-description">
                         Have a project in mind or looking
                         for the right technology solution?
                         Send us your requirements and our
                         team will get back to you.
                     </p>
 
-                    {/* =============================================
-                        CONTACT DETAILS
-                    ============================================= */}
+                    {/* CONTACT DETAILS */}
 
                     <div className="contact-details">
 
@@ -337,6 +401,7 @@ function Contact() {
                     >
 
                         <div className="form-title">
+
                             <h3>
                                 Send Us an Enquiry
                             </h3>
@@ -345,11 +410,10 @@ function Contact() {
                                 Tell us about your project
                                 and requirements.
                             </p>
+
                         </div>
 
-                        {/* =========================================
-                            NAME
-                        ========================================= */}
+                        {/* NAME */}
 
                         <div className="form-group">
 
@@ -371,9 +435,7 @@ function Contact() {
 
                         </div>
 
-                        {/* =========================================
-                            EMAIL
-                        ========================================= */}
+                        {/* EMAIL */}
 
                         <div className="form-group">
 
@@ -395,9 +457,7 @@ function Contact() {
 
                         </div>
 
-                        {/* =========================================
-                            PHONE
-                        ========================================= */}
+                        {/* PHONE */}
 
                         <div className="form-group">
 
@@ -419,9 +479,7 @@ function Contact() {
 
                         </div>
 
-                        {/* =========================================
-                            SERVICE
-                        ========================================= */}
+                        {/* SERVICE */}
 
                         <div className="form-group">
 
@@ -437,6 +495,7 @@ function Contact() {
                                 disabled={loading}
                                 required
                             >
+
                                 <option value="Software Development">
                                     Software Development
                                 </option>
@@ -468,13 +527,12 @@ function Contact() {
                                 <option value="Other">
                                     Other
                                 </option>
+
                             </select>
 
                         </div>
 
-                        {/* =========================================
-                            MESSAGE
-                        ========================================= */}
+                        {/* MESSAGE */}
 
                         <div className="form-group">
 
@@ -495,16 +553,16 @@ function Contact() {
 
                         </div>
 
-                        {/* =========================================
-                            SUBMIT
-                        ========================================= */}
+                        {/* SUBMIT */}
 
                         <button
                             type="submit"
                             className="contact-submit-btn"
                             disabled={loading}
                         >
+
                             {loading ? (
+
                                 <>
                                     <span className="submit-spinner">
                                         ⟳
@@ -512,17 +570,20 @@ function Contact() {
 
                                     Sending...
                                 </>
+
                             ) : (
+
                                 <>
                                     Send Enquiry
-                                    <span>→</span>
-                                </>
-                            )}
-                        </button>
 
-                        {/* =========================================
-                            PRIVACY TEXT
-                        ========================================= */}
+                                    <span>
+                                        →
+                                    </span>
+                                </>
+
+                            )}
+
+                        </button>
 
                         <p className="contact-form-note">
                             Your information is safe with us.
@@ -535,6 +596,7 @@ function Contact() {
                 </div>
 
             </div>
+
         </section>
     );
 }
