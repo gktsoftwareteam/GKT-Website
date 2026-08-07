@@ -16,20 +16,12 @@ const login = async (e) => {
   try {
 
     const response = await axios.post(
-      "http://127.0.0.1:8000/api/admin/login",
-       "https://gkt-website-git-main-gktsoftwareteams-projects.vercel.app",
-      {
-        email,
-        password,
-      }
-    );
-
-    // Save JWT token
-    localStorage.setItem(
-      "token",
-      response.data.access_token
-    );
-
+  "https://gkt-website.onrender.com/api/admin/login",
+  {
+    email,
+    password,
+  }
+);
    Swal.fire({
   title: "Welcome!",
   text: "Login successful.",
