@@ -8,7 +8,7 @@ import Topbar from "./Topbar";
 import "../css/Dashboard.css";
 
 const API_URL =
-  process.env.REACT_APP_API_URL || "http://127.0.0.1:8000/api";
+  process.env.API_URL || "http://127.0.0.1:8000/api";
 
 function Dashboard() {
   const [enquiries, setEnquiries] = useState([]);
