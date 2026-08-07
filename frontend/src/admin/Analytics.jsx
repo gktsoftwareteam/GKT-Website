@@ -4,7 +4,7 @@ import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import "../css/analytics.css";
 
-const API_URL = "http://127.0.0.1:8000";
+const API_URL = process.env.REACT_APP_API_URL;
 
 function Analytics() {
     const [analytics, setAnalytics] = useState({
@@ -34,7 +34,7 @@ function Analytics() {
             setError("");
 
             const response = await axios.get(
-                `${API_URL}/api/analytics`
+                `${REACT_APP_API_URL}/api/analytics`
             );
 
             const data = response.data || {};

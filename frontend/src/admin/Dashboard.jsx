@@ -1,317 +1,222 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
 
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 
 import "../css/Dashboard.css";
 
+const API_URL =
+  process.env.REACT_APP_API_URL || "http://127.0.0.1:8000/api";
 
 function Dashboard() {
-
-  const navigate = useNavigate();
-
   const [enquiries, setEnquiries] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchEnquiries = async () => {
+    try {
+      setLoading(true);
 
-  // =====================================
-  // CHECK LOGIN + FETCH ENQUIRIES
-  // =====================================
+      const response = await axios.get(
+        `${API_URL}/enquiries`
+      );
+
+      setEnquiries(response.data || []);
+    } catch (error) {
+      console.error(
+        "Error loading dashboard enquiries:",
+        error
+      );
+
+      Swal.fire({
+        icon: "error",
+        title: "Unable to load dashboard",
+        text:
+          error.response?.data?.detail ||
+          "Unable to connect to the backend.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-
-      navigate("/admin");
-
-      return;
-
-    }
-
-
-    const fetchEnquiries = async () => {
-
-      try {
-
-        const response = await axios.get(
-          "http://127.0.0.1:8000/api/enquiries"
-        );
-
-
-        setEnquiries(response.data);
-
-      } catch (error) {
-
-        console.error(
-          "Error loading dashboard enquiries:",
-          error
-        );
-
-      } finally {
-
-        setLoading(false);
-
-      }
-
-    };
-
-
     fetchEnquiries();
-
-  }, [navigate]);
-
-
-  // =====================================
-  // DASHBOARD COUNTS
-  // =====================================
+  }, []);
 
   const totalEnquiries = enquiries.length;
-
 
   const newEnquiries = enquiries.filter(
     (item) => item.status === "New"
   ).length;
 
-
-  const inProgressEnquiries = enquiries.filter(
+  const inProgress = enquiries.filter(
     (item) => item.status === "In Progress"
   ).length;
 
-
-  const completedEnquiries = enquiries.filter(
+  const completed = enquiries.filter(
     (item) => item.status === "Completed"
   ).length;
 
-
-  // =====================================
-  // RECENT ENQUIRIES
-  // =====================================
-
-  const recentEnquiries = [...enquiries]
-    .sort((a, b) => {
-
-      const dateA = a.createdAt
-        ? new Date(a.createdAt)
-        : new Date(0);
-
-      const dateB = b.createdAt
-        ? new Date(b.createdAt)
-        : new Date(0);
-
-      return dateB - dateA;
-
-    })
-    .slice(0, 5);
-
-
-  // =====================================
-  // STATUS CLASS
-  // =====================================
-
-  const getStatusClass = (status) => {
-
-    switch (status) {
-
-      case "New":
-        return "new";
-
-      case "In Progress":
-        return "progress";
-
-      case "Completed":
-        return "complete";
-
-      case "Converted":
-        return "converted";
-
-      case "Waiting Client":
-        return "waiting";
-
-      case "Rejected":
-        return "rejected";
-
-      default:
-        return "new";
-
-    }
-
-  };
-
+  const recentEnquiries = enquiries.slice(-5).reverse();
 
   return (
-
     <div className="dashboard">
 
       <Sidebar />
-
 
       <div className="dashboard-main">
 
         <Topbar />
 
-
         <div className="dashboard-content">
 
-          <h2>Dashboard</h2>
-
-
-          {/* ==============================
-              STATISTICS CARDS
-          =============================== */}
+          <div className="dashboard-heading">
+            <h2>Dashboard</h2>
+            <p>
+              Overview of your customer enquiries and
+              business activity.
+            </p>
+          </div>
 
           <div className="cards">
 
-
             <div className="card">
-
               <h3>Total Enquiries</h3>
 
               <h1>
                 {loading ? "..." : totalEnquiries}
               </h1>
 
+              <span>
+                All customer enquiries
+              </span>
             </div>
 
-
-
             <div className="card">
-
               <h3>New</h3>
 
               <h1>
                 {loading ? "..." : newEnquiries}
               </h1>
 
+              <span>
+                New enquiries
+              </span>
             </div>
 
-
-
             <div className="card">
-
               <h3>In Progress</h3>
 
               <h1>
-                {loading ? "..." : inProgressEnquiries}
+                {loading ? "..." : inProgress}
               </h1>
 
+              <span>
+                Active enquiries
+              </span>
             </div>
 
-
-
             <div className="card">
-
               <h3>Completed</h3>
 
               <h1>
-                {loading ? "..." : completedEnquiries}
+                {loading ? "..." : completed}
               </h1>
 
+              <span>
+                Completed enquiries
+              </span>
             </div>
-
 
           </div>
 
-
-
-          {/* ==============================
-              RECENT ENQUIRIES
-          =============================== */}
-
           <div className="table-section">
 
-            <h3>Recent Enquiries</h3>
+            <div className="section-header">
+              <h3>Recent Enquiries</h3>
+            </div>
 
-
-            {loading ? (
-
-              <p>Loading enquiries...</p>
-
-            ) : enquiries.length === 0 ? (
-
-              <p>No enquiries found.</p>
-
-            ) : (
+            <div className="table-container">
 
               <table>
 
                 <thead>
-
                   <tr>
-
                     <th>Name</th>
-
                     <th>Email</th>
-
                     <th>Service</th>
-
                     <th>Status</th>
-
                   </tr>
-
                 </thead>
-
 
                 <tbody>
 
-                  {recentEnquiries.map((item) => (
-
-                    <tr key={item._id}>
-
-                      <td>
-                        {item.name || "-"}
+                  {loading ? (
+                    <tr>
+                      <td
+                        colSpan="4"
+                        className="no-data"
+                      >
+                        Loading...
                       </td>
-
-
-                      <td>
-                        {item.email || "-"}
-                      </td>
-
-
-                      <td>
-                        {item.service || "-"}
-                      </td>
-
-
-                      <td>
-
-                        <span
-                          className={`status ${getStatusClass(
-                            item.status
-                          )}`}
-                        >
-
-                          {item.status || "New"}
-
-                        </span>
-
-                      </td>
-
                     </tr>
+                  ) : recentEnquiries.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan="4"
+                        className="no-data"
+                      >
+                        No enquiries available.
+                      </td>
+                    </tr>
+                  ) : (
+                    recentEnquiries.map((item) => (
+                      <tr key={item._id}>
 
-                  ))}
+                        <td>
+                          {item.name || "-"}
+                        </td>
+
+                        <td>
+                          {item.email || "-"}
+                        </td>
+
+                        <td>
+                          {item.service || "-"}
+                        </td>
+
+                        <td>
+                          <span
+                            className={`status ${String(
+                              item.status || "New"
+                            )
+                              .toLowerCase()
+                              .replace(/\s+/g, "-")}`}
+                          >
+                            {item.status || "New"}
+                          </span>
+                        </td>
+
+                      </tr>
+                    ))
+                  )}
 
                 </tbody>
 
               </table>
 
-            )}
+            </div>
 
           </div>
-
 
         </div>
 
       </div>
 
     </div>
-
   );
-
 }
-
 
 export default Dashboard;
