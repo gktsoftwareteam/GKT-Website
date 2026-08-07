@@ -5,214 +5,359 @@ import { ArrowRightIcon } from "../components/Icons";
 import "../css/admin.css";
 import Swal from "sweetalert2";
 
+// =====================================================
+// API URL
+// =====================================================
+
+const API_URL = process.env.REACT_APP_API_URL || "";
+
+// =====================================================
+// ADMIN LOGIN
+// =====================================================
+
 function Admin() {
+    const navigate = useNavigate();
 
-  const navigate = useNavigate();
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [loading, setLoading] = useState(false);
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+    // =====================================================
+    // LOGIN
+    // =====================================================
 
+    const login = async (e) => {
+        e.preventDefault();
 
-
-  const login = async (e) => {
-
-    e.preventDefault();
-
-
-    try {
-
-      const response = await axios.post(
-        "https://gkt-website.onrender.com/api/admin/login",
-        {
-          email,
-          password,
+        if (loading) {
+            return;
         }
-      );
 
+        // =================================================
+        // CHECK API URL
+        // =================================================
 
-      // Save JWT Token
-      localStorage.setItem(
-        "token",
-        response.data.access_token
-      );
+        if (!API_URL) {
+            Swal.fire({
+                title: "Configuration Error",
+                text:
+                    "Backend API URL is not configured. Please contact the administrator.",
+                icon: "error",
+            });
 
+            console.error(
+                "REACT_APP_API_URL is not configured."
+            );
 
-      Swal.fire({
-        title: "Welcome!",
-        text: "Login successful.",
-        icon: "success",
-        timer: 1500,
-        showConfirmButton: false
-      });
+            return;
+        }
 
+        // =================================================
+        // VALIDATION
+        // =================================================
 
-      navigate("/admin/dashboard");
+        if (!email.trim()) {
+            Swal.fire({
+                title: "Email Required",
+                text: "Please enter your email address.",
+                icon: "warning",
+            });
 
+            return;
+        }
 
-    } catch (error) {
+        if (!password.trim()) {
+            Swal.fire({
+                title: "Password Required",
+                text: "Please enter your password.",
+                icon: "warning",
+            });
 
+            return;
+        }
 
-      Swal.fire({
-        title: "Login Failed",
-        text:
-          error.response?.data?.detail ||
-          "Invalid email or password",
-        icon: "error"
-      });
+        try {
+            setLoading(true);
 
+            // =================================================
+            // ADMIN LOGIN API
+            // =================================================
 
-    }
-
-  };
-
-
-
-  return (
-
-    <section className="admin">
-
-      <div className="admin__grid">
-
-
-        {/* Left Side */}
-
-        <div className="admin__info">
-
-          <p className="eyebrow">
-            Admin Portal
-          </p>
-
-
-          <h1>
-            Welcome Back
-          </h1>
-
-
-          <p className="admin__lead">
-            Login to manage customer enquiries,
-            projects, quotations and your
-            GKT Software Solution dashboard.
-          </p>
-
-
-        </div>
-
-
-
-        {/* Right Side */}
-
-        <div className="admin__form">
-
-
-          <div className="admin__logo">
-
-            <h2>
-              GKT
-            </h2>
-
-            <p>
-              Software Solution
-            </p>
-
-          </div>
-
-
-
-          <h3>
-            Admin Login
-          </h3>
-
-
-
-          <form onSubmit={login}>
-
-
-            <div className="field">
-
-              <label>
-                Email
-              </label>
-
-
-              <input
-
-                type="email"
-
-                placeholder="admin@gkt.com"
-
-                value={email}
-
-                onChange={(e)=>
-                  setEmail(e.target.value)
+            const response = await axios.post(
+                `${API_URL}/api/admin/login`,
+                {
+                    email: email.trim(),
+                    password: password,
+                },
+                {
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    timeout: 15000,
                 }
+            );
 
-                required
+            console.log(
+                "ADMIN LOGIN RESPONSE:",
+                response.data
+            );
 
-              />
+            // =================================================
+            // GET TOKEN
+            // =================================================
+
+            const token =
+                response.data?.access_token ||
+                response.data?.token;
+
+            if (!token) {
+                throw new Error(
+                    "Login succeeded but no access token was returned by the server."
+                );
+            }
+
+            // =================================================
+            // SAVE TOKEN
+            // =================================================
+
+            localStorage.setItem(
+                "token",
+                token
+            );
+
+            // Optional: save admin information
+            if (response.data?.admin) {
+                localStorage.setItem(
+                    "admin",
+                    JSON.stringify(
+                        response.data.admin
+                    )
+                );
+            }
+
+            // =================================================
+            // SUCCESS
+            // =================================================
+
+            await Swal.fire({
+                title: "Welcome!",
+                text: "Login successful.",
+                icon: "success",
+                timer: 1500,
+                showConfirmButton: false,
+            });
+
+            // =================================================
+            // NAVIGATE
+            // =================================================
+
+            navigate("/admin/dashboard");
+
+        } catch (error) {
+            console.error(
+                "ADMIN LOGIN ERROR:",
+                error.response?.data || error.message
+            );
+
+            let errorMessage =
+                "Invalid email or password.";
+
+            // FastAPI validation errors
+            if (
+                Array.isArray(
+                    error.response?.data?.detail
+                )
+            ) {
+                errorMessage =
+                    error.response.data.detail
+                        .map((item) =>
+                            item.msg
+                                ? item.msg
+                                : String(item)
+                        )
+                        .join(", ");
+            }
+
+            // FastAPI normal detail
+            else if (
+                error.response?.data?.detail
+            ) {
+                errorMessage =
+                    error.response.data.detail;
+            }
+
+            // Network/CORS error
+            else if (
+                error.request &&
+                !error.response
+            ) {
+                errorMessage =
+                    "Unable to connect to the backend server. Please check the API URL, Render server and CORS configuration.";
+            }
+
+            // =================================================
+            // ERROR ALERT
+            // =================================================
+
+            Swal.fire({
+                title: "Login Failed",
+                text: errorMessage,
+                icon: "error",
+                confirmButtonText: "Try Again",
+            });
+
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // =====================================================
+    // RENDER
+    // =====================================================
+
+    return (
+        <section className="admin">
+
+            <div className="admin__grid">
+
+                {/* =================================================
+                    LEFT SIDE
+                ================================================= */}
+
+                <div className="admin__info">
+
+                    <p className="eyebrow">
+                        Admin Portal
+                    </p>
+
+                    <h1>
+                        Welcome Back
+                    </h1>
+
+                    <p className="admin__lead">
+                        Login to manage customer
+                        enquiries, projects,
+                        quotations and your
+                        GKT Software Solution
+                        dashboard.
+                    </p>
+
+                </div>
+
+                {/* =================================================
+                    RIGHT SIDE
+                ================================================= */}
+
+                <div className="admin__form">
+
+                    <div className="admin__logo">
+
+                        <h2>
+                            GKT
+                        </h2>
+
+                        <p>
+                            Software Solution
+                        </p>
+
+                    </div>
+
+                    <h3>
+                        Admin Login
+                    </h3>
+
+                    <form onSubmit={login}>
+
+                        {/* =========================================
+                            EMAIL
+                        ========================================= */}
+
+                        <div className="field">
+
+                            <label htmlFor="admin-email">
+                                Email
+                            </label>
+
+                            <input
+                                id="admin-email"
+                                type="email"
+                                placeholder="admin@gkt.com"
+                                value={email}
+                                onChange={(e) =>
+                                    setEmail(
+                                        e.target.value
+                                    )
+                                }
+                                autoComplete="email"
+                                disabled={loading}
+                                required
+                            />
+
+                        </div>
+
+                        {/* =========================================
+                            PASSWORD
+                        ========================================= */}
+
+                        <div className="field">
+
+                            <label htmlFor="admin-password">
+                                Password
+                            </label>
+
+                            <input
+                                id="admin-password"
+                                type="password"
+                                placeholder="********"
+                                value={password}
+                                onChange={(e) =>
+                                    setPassword(
+                                        e.target.value
+                                    )
+                                }
+                                autoComplete="current-password"
+                                disabled={loading}
+                                required
+                            />
+
+                        </div>
+
+                        {/* =========================================
+                            LOGIN BUTTON
+                        ========================================= */}
+
+                        <button
+                            className="btn-login"
+                            type="submit"
+                            disabled={loading}
+                        >
+
+                            {loading ? (
+                                <>
+                                    <span>
+                                        Logging in...
+                                    </span>
+                                </>
+                            ) : (
+                                <>
+                                    <span>
+                                        Login
+                                    </span>
+
+                                    <ArrowRightIcon />
+                                </>
+                            )}
+
+                        </button>
+
+                    </form>
+
+                </div>
 
             </div>
 
-
-
-
-            <div className="field">
-
-
-              <label>
-                Password
-              </label>
-
-
-
-              <input
-
-                type="password"
-
-                placeholder="********"
-
-                value={password}
-
-                onChange={(e)=>
-                  setPassword(e.target.value)
-                }
-
-                required
-
-              />
-
-
-            </div>
-
-
-
-
-            <button 
-              className="btn-login"
-              type="submit"
-            >
-
-              Login
-
-              <ArrowRightIcon />
-
-            </button>
-
-
-
-          </form>
-
-
-        </div>
-
-
-      </div>
-
-
-    </section>
-
-  );
-
+        </section>
+    );
 }
-
 
 export default Admin;
