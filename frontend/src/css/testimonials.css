@@ -1,0 +1,106 @@
+.testimonial-slider {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.testimonial-card {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  padding: var(--space-2xl) var(--space-lg);
+  text-align: center;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--color-border);
+}
+
+.testimonial-card__stars {
+  display: flex;
+  justify-content: center;
+  gap: 0.2rem;
+  color: #ffb400;
+  margin-bottom: var(--space-md);
+}
+
+.testimonial-card__quote {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 500;
+  color: var(--color-navy);
+  line-height: 1.5;
+  margin-bottom: var(--space-lg);
+}
+
+.testimonial-card__author {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+}
+
+.testimonial-card__avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--gradient-primary);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.testimonial-card__author div {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+}
+.testimonial-card__author strong {
+  color: var(--color-navy);
+  font-size: 0.95rem;
+}
+.testimonial-card__author span {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+.testimonial-slider__controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2rem;
+  margin-top: var(--space-lg);
+}
+
+.testimonial-slider__controls > button {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: #fff;
+  color: var(--color-navy);
+  display: grid;
+  place-items: center;
+  transition: all var(--transition-fast);
+}
+.testimonial-slider__controls > button:hover {
+  background: var(--gradient-primary);
+  border-color: transparent;
+  color: #fff;
+}
+
+.testimonial-slider__dots {
+  display: flex;
+  gap: 0.5rem;
+}
+.testimonial-slider__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--color-border);
+  transition: all var(--transition-fast);
+}
+.testimonial-slider__dot.is-active {
+  background: var(--color-primary);
+  width: 22px;
+  border-radius: var(--radius-pill);
+}

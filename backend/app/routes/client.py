@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException
+
 from app.database import database
 from app.models.client import Client
+
 from bson import ObjectId
 from bson.errors import InvalidId
 
@@ -11,213 +13,297 @@ router = APIRouter(
 )
 
 
+# =========================================================
+# CLIENT STATUS OPTIONS
+# =========================================================
 
-# ==================================
+CLIENT_STATUSES = [
+    "Active",
+    "Pending",
+    "Completed",
+    "Inactive"
+]
+
+
+# =========================================================
 # CREATE CLIENT
-# ==================================
+# =========================================================
 
 @router.post("/clients")
 async def create_client(client: Client):
 
-    result = await database.clients.insert_one(
-        client.dict()
-    )
+    try:
 
-    return {
-        "message": "Client added successfully",
-        "id": str(result.inserted_id)
-    }
+        client_data = client.model_dump()
+
+        client_data.pop("_id", None)
+
+        if not client_data.get("status"):
+            client_data["status"] = "Active"
+
+        result = await database.clients.insert_one(
+            client_data
+        )
+
+        return {
+
+            "message": "Client added successfully",
+
+            "id": str(result.inserted_id)
+
+        }
+
+    except Exception as e:
+
+        print("CREATE CLIENT ERROR:", e)
+
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to create client"
+        )
 
 
-
-
-# ==================================
+# =========================================================
 # GET ALL CLIENTS
-# ==================================
+# =========================================================
 
 @router.get("/clients")
 async def get_clients():
 
-    clients = []
+    try:
+
+        clients = []
+
+        async for client in database.clients.find().sort(
+            "createdAt",
+            -1
+        ):
+
+            client["_id"] = str(client["_id"])
+
+            clients.append(client)
+
+        return clients
+
+    except Exception as e:
+
+        print("GET CLIENTS ERROR:", e)
+
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to fetch clients"
+        )
 
 
-    async for client in database.clients.find():
+# =========================================================
+# GET SINGLE CLIENT
+# =========================================================
+
+@router.get("/clients/{client_id}")
+async def get_client(client_id: str):
+
+    try:
+
+        try:
+
+            client = await database.clients.find_one(
+                {
+                    "_id": ObjectId(client_id)
+                }
+            )
+
+        except InvalidId:
+
+            client = await database.clients.find_one(
+                {
+                    "_id": client_id
+                }
+            )
+
+        if client is None:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Client not found"
+            )
 
         client["_id"] = str(client["_id"])
 
-        clients.append(client)
+        return client
 
+    except HTTPException:
 
-    return clients
+        raise
 
+    except Exception as e:
 
-
-
-
-# ==================================
-# GET SINGLE CLIENT
-# ==================================
-
-@router.get("/clients/{client_id}")
-async def get_client(client_id:str):
-
-    try:
-
-        client = await database.clients.find_one(
-            {
-                "_id": ObjectId(client_id)
-            }
-        )
-
-
-    except InvalidId:
-
-        client = await database.clients.find_one(
-            {
-                "_id": client_id
-            }
-        )
-
-
-
-    if client is None:
+        print("GET SINGLE CLIENT ERROR:", e)
 
         raise HTTPException(
-            status_code=404,
-            detail="Client not found"
+            status_code=500,
+            detail="Failed to fetch client"
         )
 
 
-    client["_id"] = str(client["_id"])
-
-
-    return client
-
-
-
-
-
-
-# ==================================
+# =========================================================
 # UPDATE CLIENT
-# ==================================
+# =========================================================
 
 @router.put("/clients/{client_id}")
 async def update_client(
-    client_id:str,
-    client:dict
+    client_id: str,
+    client: dict
 ):
 
-
     try:
 
+        # IMPORTANT:
+        # MongoDB _id cannot be changed
 
-        result = await database.clients.update_one(
-
-            {
-                "_id": ObjectId(client_id)
-            },
-
-            {
-                "$set": client
-            }
-
-        )
+        client.pop("_id", None)
 
 
-    except InvalidId:
+        # Validate status if supplied
+
+        if "status" in client:
+
+            if client["status"] not in CLIENT_STATUSES:
+
+                raise HTTPException(
+
+                    status_code=400,
+
+                    detail=
+                    f"Invalid status. Allowed: "
+                    f"{', '.join(CLIENT_STATUSES)}"
+
+                )
 
 
-        result = await database.clients.update_one(
+        try:
 
-            {
-                "_id": client_id
-            },
+            result = await database.clients.update_one(
 
-            {
-                "$set": client
-            }
+                {
+                    "_id": ObjectId(client_id)
+                },
 
-        )
+                {
+                    "$set": client
+                }
+
+            )
+
+        except InvalidId:
+
+            result = await database.clients.update_one(
+
+                {
+                    "_id": client_id
+                },
+
+                {
+                    "$set": client
+                }
+
+            )
 
 
+        if result.matched_count == 0:
+
+            raise HTTPException(
+
+                status_code=404,
+
+                detail="Client not found"
+
+            )
 
 
-    if result.matched_count == 0:
+        return {
+
+            "message": "Client updated successfully"
+
+        }
+
+
+    except HTTPException:
+
+        raise
+
+    except Exception as e:
+
+        print("UPDATE CLIENT ERROR:", e)
 
         raise HTTPException(
 
-            status_code=404,
+            status_code=500,
 
-            detail="Client not found"
+            detail="Failed to update client"
 
         )
 
 
-
-    return {
-
-        "message":"Client updated successfully"
-
-    }
-
-
-
-
-
-
-
-# ==================================
+# =========================================================
 # DELETE CLIENT
-# ==================================
+# =========================================================
 
 @router.delete("/clients/{client_id}")
-async def delete_client(client_id:str):
-
+async def delete_client(client_id: str):
 
     try:
 
+        try:
 
-        result = await database.clients.delete_one(
+            result = await database.clients.delete_one(
 
-            {
-                "_id": ObjectId(client_id)
-            }
+                {
+                    "_id": ObjectId(client_id)
+                }
 
-        )
+            )
 
+        except InvalidId:
 
-    except InvalidId:
+            result = await database.clients.delete_one(
 
+                {
+                    "_id": client_id
+                }
 
-        result = await database.clients.delete_one(
-
-            {
-                "_id": client_id
-            }
-
-        )
-
+            )
 
 
+        if result.deleted_count == 0:
+
+            raise HTTPException(
+
+                status_code=404,
+
+                detail="Client not found"
+
+            )
 
 
-    if result.deleted_count == 0:
+        return {
 
+            "message": "Client deleted successfully"
+
+        }
+
+
+    except HTTPException:
+
+        raise
+
+    except Exception as e:
+
+        print("DELETE CLIENT ERROR:", e)
 
         raise HTTPException(
 
-            status_code=404,
+            status_code=500,
 
-            detail="Client not found"
+            detail="Failed to delete client"
 
         )
-
-
-
-
-    return {
-
-        "message":"Client deleted successfully"
-
-    }

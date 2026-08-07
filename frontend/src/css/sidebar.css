@@ -1,0 +1,305 @@
+/* =====================================
+      GKT CRM SIDEBAR
+====================================== */
+
+:root{
+    --sidebar-bg:#0f172a;
+    --sidebar-bg-light:#1e293b;
+    --primary:#2563eb;
+    --primary-light:#3b82f6;
+    --text:#f8fafc;
+    --text-light:#94a3b8;
+    --danger:#ef4444;
+}
+
+/* Sidebar */
+
+.sidebar{
+    position:fixed;
+    top:0;
+    left:0;
+    width:260px;
+    height:100vh;
+    background:var(--sidebar-bg);
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    color:white;
+    z-index:999;
+    overflow:hidden;
+    box-shadow:6px 0 25px rgba(0,0,0,.18);
+}
+
+/* Logo */
+
+.logo{
+    padding:30px 20px;
+    text-align:center;
+    border-bottom:1px solid rgba(255,255,255,.08);
+}
+
+.logo h2{
+    font-size:34px;
+    color:#3b82f6;
+    letter-spacing:1px;
+}
+
+.logo span{
+    display:block;
+    margin-top:6px;
+    color:#94a3b8;
+    font-size:14px;
+}
+
+/* Menu */
+
+.sidebar ul{
+    list-style:none;
+    padding:20px 12px;
+    overflow-y:auto;
+    flex:1;
+}
+
+/* Scrollbar */
+
+.sidebar ul::-webkit-scrollbar{
+    width:5px;
+}
+
+.sidebar ul::-webkit-scrollbar-thumb{
+    background:#334155;
+    border-radius:30px;
+}
+
+.sidebar li{
+    margin-bottom:8px;
+}
+
+/* Links */
+
+.sidebar li a{
+
+    display:flex;
+    align-items:center;
+    gap:15px;
+
+    padding:15px 18px;
+
+    color:var(--text-light);
+
+    text-decoration:none;
+
+    border-radius:14px;
+
+    transition:.3s;
+
+    font-size:15px;
+
+    font-weight:600;
+}
+
+/* Hover */
+
+.sidebar li a:hover{
+
+    background:#1e293b;
+
+    color:white;
+
+    transform:translateX(6px);
+
+}
+
+/* Active */
+
+.sidebar li a.active{
+
+    background:linear-gradient(90deg,#2563eb,#3b82f6);
+
+    color:white;
+
+    box-shadow:0 10px 25px rgba(37,99,235,.4);
+
+}
+
+/* Icons */
+
+.sidebar li a svg{
+    font-size:20px;
+}
+
+.sidebar li a span{
+    white-space:nowrap;
+}
+
+/* Logout */
+
+.logout-btn{
+
+    margin:18px;
+
+    padding:14px;
+
+    background:#ef4444;
+
+    border:none;
+
+    border-radius:12px;
+
+    color:white;
+
+    font-size:15px;
+
+    font-weight:600;
+
+    cursor:pointer;
+
+    transition:.3s;
+}
+
+.logout-btn:hover{
+
+    background:#dc2626;
+
+    transform:translateY(-2px);
+
+}
+
+/* Dashboard Content */
+
+.dashboard-main{
+
+    margin-left:260px;
+
+    width:calc(100% - 260px);
+
+    min-height:100vh;
+
+    transition:.3s;
+
+}
+
+/* ===========================
+      TABLET
+=========================== */
+
+@media(max-width:992px){
+
+.sidebar{
+
+width:90px;
+
+}
+
+.logo{
+
+padding:25px 10px;
+
+}
+
+.logo span{
+
+display:none;
+
+}
+
+.logo h2{
+
+font-size:28px;
+
+}
+
+.sidebar li a{
+
+justify-content:center;
+
+padding:16px;
+
+}
+
+.sidebar li a span{
+
+display:none;
+
+}
+
+.logout-btn{
+
+margin:12px;
+
+padding:12px;
+
+font-size:13px;
+
+}
+
+.dashboard-main{
+
+margin-left:90px;
+
+width:calc(100% - 90px);
+
+}
+
+}
+
+/* ===========================
+      MOBILE
+=========================== */
+
+@media(max-width:768px){
+
+.sidebar{
+transform:translateX(-100%);
+}
+.sidebar.show{
+
+left:0;
+
+}
+
+.dashboard-main{
+
+margin-left:0;
+
+width:100%;
+
+}
+
+}
+
+/* ===========================
+      LARGE DESKTOP
+=========================== */
+
+@media(min-width:1400px){
+
+.sidebar{
+
+width:280px;
+
+}
+
+.dashboard-main{
+
+margin-left:280px;
+
+width:calc(100% - 280px);
+
+}
+
+.logo h2{
+
+font-size:38px;
+
+}
+
+.sidebar li a{
+
+font-size:16px;
+
+padding:16px 20px;
+
+}
+
+}

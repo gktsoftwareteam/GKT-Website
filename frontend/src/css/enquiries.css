@@ -1,0 +1,844 @@
+/* =========================================================
+   GKT CRM - ENQUIRIES PAGE
+   ========================================================= */
+
+.enquiries-page {
+    min-height: 100vh;
+    padding: 30px;
+    background: #f8fafc;
+    box-sizing: border-box;
+}
+
+
+/* =========================================================
+   PAGE HEADER
+   ========================================================= */
+
+.page-title {
+    margin-bottom: 25px;
+}
+
+.page-title h2 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 32px;
+    font-weight: 800;
+}
+
+.page-title p {
+    margin: 8px 0 0;
+    color: #64748b;
+    font-size: 15px;
+}
+
+
+/* =========================================================
+   TOOLBAR
+   ========================================================= */
+
+.toolbar {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.toolbar input {
+    flex: 1;
+    height: 48px;
+    padding: 0 18px;
+    border: 1px solid #dbe4ef;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 15px;
+    box-sizing: border-box;
+    transition: 0.2s ease;
+}
+
+.toolbar input::placeholder {
+    color: #94a3b8;
+}
+
+.toolbar input:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+.toolbar select {
+    width: 220px;
+    height: 48px;
+    padding: 0 15px;
+    border: 1px solid #dbe4ef;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #334155;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.toolbar select:focus {
+    outline: none;
+    border-color: #2563eb;
+}
+
+
+/* =========================================================
+   TABLE CONTAINER
+   ========================================================= */
+
+.table-container {
+    width: 100%;
+    background: #ffffff;
+    border-radius: 18px;
+    overflow-x: auto;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+.table-container::-webkit-scrollbar {
+    height: 8px;
+}
+
+.table-container::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+
+
+/* =========================================================
+   TABLE
+   ========================================================= */
+
+.table-container table {
+    width: 100%;
+    min-width: 1250px;
+    border-collapse: collapse;
+}
+
+.table-container thead {
+    background: linear-gradient(
+        90deg,
+        #2563eb,
+        #1d4ed8
+    );
+}
+
+.table-container thead th {
+    padding: 17px 16px;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: left;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+}
+
+.table-container tbody td {
+    padding: 16px;
+    color: #334155;
+    font-size: 14px;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: middle;
+}
+
+.table-container tbody tr {
+    transition: 0.2s ease;
+}
+
+.table-container tbody tr:hover {
+    background: #f8fbff;
+}
+
+.table-container tbody tr:last-child td {
+    border-bottom: none;
+}
+
+
+/* =========================================================
+   NAME / EMAIL
+   ========================================================= */
+
+.enquiry-name {
+    color: #0f172a;
+    font-weight: 700;
+}
+
+.enquiry-email {
+    color: #64748b;
+    font-size: 13px;
+}
+
+.enquiry-phone {
+    color: #475569;
+}
+
+
+/* =========================================================
+   STATUS DROPDOWN
+   ========================================================= */
+
+.status-dropdown {
+    min-width: 145px;
+    padding: 8px 30px 8px 12px;
+    border: none;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    outline: none;
+    appearance: auto;
+    transition: 0.2s ease;
+}
+
+.status-dropdown:hover {
+    transform: translateY(-1px);
+}
+
+.status-dropdown:focus {
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+
+/* New */
+
+.status-dropdown.new {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+
+/* In Progress */
+
+.status-dropdown.in-progress {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+
+/* Waiting Client */
+
+.status-dropdown.waiting-client {
+    background: #ede9fe;
+    color: #6d28d9;
+}
+
+
+/* Completed */
+
+.status-dropdown.completed {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+
+/* Rejected */
+
+.status-dropdown.rejected {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+
+/* Converted */
+
+.status-dropdown.converted {
+    background: #ccfbf1;
+    color: #0f766e;
+}
+
+
+/* =========================================================
+   STATUS BADGE
+   ========================================================= */
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 90px;
+    padding: 7px 13px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.status-badge.new {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.status-badge.in-progress {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.status-badge.waiting-client {
+    background: #ede9fe;
+    color: #6d28d9;
+}
+
+.status-badge.completed {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.status-badge.rejected {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.status-badge.converted {
+    background: #ccfbf1;
+    color: #0f766e;
+}
+
+
+/* =========================================================
+   ACTION BUTTONS
+   ========================================================= */
+
+.action-buttons {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+}
+
+.action-buttons button {
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.action-buttons button:hover {
+    transform: translateY(-1px);
+}
+
+.action-buttons button:active {
+    transform: translateY(0);
+}
+
+
+/* View */
+
+.view-btn {
+    background: #2563eb;
+}
+
+.view-btn:hover {
+    background: #1d4ed8;
+}
+
+
+/* Reply */
+
+.reply-btn {
+    background: #10b981;
+}
+
+.reply-btn:hover {
+    background: #059669;
+}
+
+
+/* Convert */
+
+.convert-btn {
+    background: #8b5cf6;
+}
+
+.convert-btn:hover {
+    background: #7c3aed;
+}
+
+.convert-btn:disabled {
+    background: #cbd5e1;
+    color: #64748b;
+    cursor: not-allowed;
+    transform: none;
+}
+
+
+/* Delete */
+
+.delete-btn {
+    background: #ef4444;
+}
+
+.delete-btn:hover {
+    background: #dc2626;
+}
+
+
+/* =========================================================
+   MODAL OVERLAY
+   ========================================================= */
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 20px;
+
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(6px);
+
+    box-sizing: border-box;
+}
+
+
+/* =========================================================
+   MODAL
+   ========================================================= */
+
+.modal {
+    width: 100%;
+    max-width: 650px;
+    max-height: 90vh;
+
+    background: #ffffff;
+    border-radius: 18px;
+
+    overflow: hidden;
+
+    box-shadow: 0 25px 60px rgba(15, 23, 42, 0.25);
+
+    animation: enquiryModalPopup 0.25s ease;
+}
+
+@keyframes enquiryModalPopup {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+
+/* =========================================================
+   MODAL HEADER
+   ========================================================= */
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 20px 24px;
+
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 21px;
+    font-weight: 750;
+}
+
+.modal-header .close-btn {
+    width: 38px;
+    height: 38px;
+
+    padding: 0;
+
+    border: none;
+    border-radius: 10px;
+
+    background: #e2e8f0;
+    color: #334155;
+
+    font-size: 20px;
+    cursor: pointer;
+
+    transition: 0.2s;
+}
+
+.modal-header .close-btn:hover {
+    background: #ef4444;
+    color: #ffffff;
+}
+
+
+/* =========================================================
+   MODAL BODY
+   ========================================================= */
+
+.modal-body {
+    padding: 25px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.modal-body::-webkit-scrollbar {
+    width: 7px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+
+
+/* =========================================================
+   INFORMATION ROW
+   ========================================================= */
+
+.info-row {
+    display: flex;
+    gap: 15px;
+
+    margin-bottom: 16px;
+
+    color: #475569;
+}
+
+.info-row strong {
+    width: 120px;
+    flex-shrink: 0;
+
+    color: #0f172a;
+    font-weight: 700;
+}
+
+
+/* =========================================================
+   MESSAGE BOX
+   ========================================================= */
+
+.message-box {
+    margin-top: 25px;
+    padding: 18px;
+
+    background: #f8fafc;
+
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+}
+
+.message-box h3 {
+    margin: 0 0 10px;
+
+    color: #0f172a;
+    font-size: 16px;
+}
+
+.message-box p {
+    margin: 0;
+
+    color: #475569;
+    line-height: 1.7;
+    white-space: pre-wrap;
+}
+
+
+/* =========================================================
+   REPLY MODAL
+   ========================================================= */
+
+.reply-textarea {
+    width: 100%;
+    min-height: 180px;
+
+    padding: 15px;
+
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+
+    background: #ffffff;
+
+    color: #0f172a;
+
+    font-family: inherit;
+    font-size: 14px;
+
+    resize: vertical;
+
+    box-sizing: border-box;
+}
+
+.reply-textarea:focus {
+    outline: none;
+
+    border-color: #2563eb;
+
+    box-shadow:
+        0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+.reply-textarea::placeholder {
+    color: #94a3b8;
+}
+
+
+/* =========================================================
+   REPLY ACTIONS
+   ========================================================= */
+
+.reply-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+
+    margin-top: 20px;
+}
+
+.reply-actions button {
+    border: none;
+    border-radius: 10px;
+
+    padding: 11px 20px;
+
+    font-size: 14px;
+    font-weight: 700;
+
+    cursor: pointer;
+
+    transition: 0.2s;
+}
+
+.cancel-btn {
+    background: #e2e8f0;
+    color: #334155;
+}
+
+.cancel-btn:hover {
+    background: #cbd5e1;
+}
+
+.send-btn {
+    background: #10b981;
+    color: #ffffff;
+}
+
+.send-btn:hover {
+    background: #059669;
+}
+
+.send-btn:disabled {
+    background: #94a3b8;
+    cursor: not-allowed;
+}
+
+
+/* =========================================================
+   LOADING
+   ========================================================= */
+
+.loading {
+    padding: 50px;
+    text-align: center;
+
+    color: #64748b;
+    font-size: 15px;
+}
+
+
+/* =========================================================
+   EMPTY DATA
+   ========================================================= */
+
+.no-data {
+    padding: 50px 20px !important;
+
+    text-align: center;
+
+    color: #94a3b8 !important;
+    font-size: 15px !important;
+}
+
+
+/* =========================================================
+   SUCCESS MESSAGE
+   ========================================================= */
+
+.success-message {
+    margin-bottom: 20px;
+    padding: 13px 16px;
+
+    border: 1px solid #bbf7d0;
+    border-radius: 10px;
+
+    background: #f0fdf4;
+    color: #15803d;
+
+    font-size: 14px;
+    font-weight: 600;
+}
+
+
+/* =========================================================
+   ERROR MESSAGE
+   ========================================================= */
+
+.error-message {
+    margin-bottom: 20px;
+    padding: 13px 16px;
+
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+
+    background: #fef2f2;
+    color: #dc2626;
+
+    font-size: 14px;
+    font-weight: 600;
+}
+
+
+/* =========================================================
+   RESPONSIVE - 992px
+   ========================================================= */
+
+@media (max-width: 992px) {
+
+    .enquiries-page {
+        padding: 20px;
+    }
+
+    .page-title h2 {
+        font-size: 27px;
+    }
+
+    .toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .toolbar input {
+        width: 100%;
+    }
+
+    .toolbar select {
+        width: 100%;
+    }
+}
+
+
+/* =========================================================
+   RESPONSIVE - 768px
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+    .enquiries-page {
+        padding: 15px;
+    }
+
+    .page-title {
+        margin-bottom: 20px;
+    }
+
+    .page-title h2 {
+        font-size: 24px;
+    }
+
+    .page-title p {
+        font-size: 14px;
+    }
+
+    .table-container table {
+        min-width: 1100px;
+    }
+
+    .action-buttons {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .action-buttons button {
+        width: 100%;
+    }
+
+    .modal-overlay {
+        padding: 12px;
+    }
+
+    .modal {
+        max-height: 95vh;
+    }
+
+    .modal-header {
+        padding: 16px 18px;
+    }
+
+    .modal-body {
+        padding: 18px;
+    }
+
+    .info-row {
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .info-row strong {
+        width: auto;
+    }
+
+    .reply-actions {
+        flex-direction: column;
+    }
+
+    .reply-actions button {
+        width: 100%;
+    }
+}
+
+
+/* =========================================================
+   RESPONSIVE - 480px
+   ========================================================= */
+
+@media (max-width: 480px) {
+
+    .enquiries-page {
+        padding: 12px;
+    }
+
+    .page-title h2 {
+        font-size: 21px;
+    }
+
+    .page-title p {
+        font-size: 13px;
+    }
+
+    .toolbar input,
+    .toolbar select {
+        height: 44px;
+        font-size: 14px;
+    }
+
+    .modal-header h2 {
+        font-size: 18px;
+    }
+
+    .modal-body {
+        padding: 15px;
+    }
+
+    .reply-textarea {
+        min-height: 150px;
+    }
+}

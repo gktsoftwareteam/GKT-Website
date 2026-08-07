@@ -1,49 +1,57 @@
-from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
-from pydantic import EmailStr
+import os
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
-conf = ConnectionConfig(
-
-    MAIL_USERNAME="GKT SOFTWARE TEAM",
-
-    MAIL_PASSWORD="gktsoftwareteam@2002",
-
-    MAIL_FROM="gktsoftwaresolution@gmail.com",
-
-    MAIL_PORT=587,
-
-    MAIL_SERVER="smtp.gmail.com",
-
-    MAIL_STARTTLS=True,
-
-    MAIL_SSL_TLS=False,
-
-    USE_CREDENTIALS=True
-
-)
+EMAIL_USER = os.getenv("EMAIL_USER")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
 
 
-async def send_email(
-    email:str,
-    subject:str,
-    body:str
-):
+async def send_email(to_email: str, subject: str, message: str):
 
+    if not EMAIL_USER or not EMAIL_PASSWORD:
+        raise Exception("Email credentials are missing")
 
-    message = MessageSchema(
+    msg = MIMEMultipart()
 
-        subject=subject,
+    msg["From"] = EMAIL_USER
+    msg["To"] = to_email
+    msg["Subject"] = subject
 
-        recipients=[email],
-
-        body=body,
-
-        subtype="plain"
-
+    msg.attach(
+        MIMEText(message, "plain")
     )
 
+    try:
 
-    fm = FastMail(conf)
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
 
+            server.ehlo()
 
-    await fm.send_message(message)
+            server.starttls()
+
+            server.ehlo()
+
+            server.login(
+                EMAIL_USER,
+                EMAIL_PASSWORD
+            )
+
+            server.sendmail(
+                EMAIL_USER,
+                to_email,
+                msg.as_string()
+            )
+
+    except Exception as e:
+
+        print("EMAIL SMTP ERROR:", e)
+
+        raise Exception(
+            f"Email sending failed: {e}"
+        )
