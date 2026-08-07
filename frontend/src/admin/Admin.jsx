@@ -17,7 +17,7 @@ const login = async (e) => {
 
     const response = await axios.post(
       "http://127.0.0.1:8000/api/admin/login",
-       "https://gkt-website.onrender.com/",
+       "https://gkt-website-git-main-gktsoftwareteams-projects.vercel.app",
       {
         email,
         password,
