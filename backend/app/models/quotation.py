@@ -56,4 +56,4 @@ class QuotationUpdate(BaseModel):
 
     terms: Optional[str] = None
 
-    status: Optional[str] = None
+    status: Optional[str] = None 

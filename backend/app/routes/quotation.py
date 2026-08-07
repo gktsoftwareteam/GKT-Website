@@ -2,12 +2,15 @@ from fastapi import APIRouter, HTTPException
 from datetime import datetime, timezone, timedelta
 from bson import ObjectId
 from bson.errors import InvalidId
+from fastapi.responses import StreamingResponse
 
 from app.database import database
 from app.models.quotation import (
     QuotationCreate,
     QuotationUpdate
 )
+from app.utils.quotation_pdf import generate_quotation_pdf
+
 
 router = APIRouter(
     prefix="/api/quotations",
@@ -16,40 +19,111 @@ router = APIRouter(
 
 
 # =========================================================
-# HELPER
+# HELPER - OBJECT ID
+# =========================================================
+
+def get_object_id(value: str):
+    try:
+        return ObjectId(value)
+    except InvalidId:
+        return value
+
+
+# =========================================================
+# HELPER - CALCULATE TOTALS
 # =========================================================
 
 def calculate_totals(data):
+    """
+    Calculate:
+    subtotal
+    discount
+    taxable amount
+    GST
+    final total
+    """
 
-    subtotal = 0
+    subtotal = 0.0
 
-    for item in data.get("items", []):
+    items = data.get("items", [])
 
-        quantity = float(item.get("quantity", 0))
-        rate = float(item.get("rate", 0))
+    for item in items:
+
+        quantity = float(
+            item.get("quantity", 0)
+        )
+
+        rate = float(
+            item.get("rate", 0)
+        )
 
         amount = quantity * rate
 
-        item["amount"] = amount
+        item["amount"] = round(
+            amount,
+            2
+        )
 
         subtotal += amount
 
-    discount = float(data.get("discount", 0))
-    gst_percentage = float(data.get("gst_percentage", 18))
+    discount = float(
+        data.get(
+            "discount",
+            0
+        )
+    )
 
-    taxable_amount = max(subtotal - discount, 0)
+    gst_percentage = float(
+        data.get(
+            "gst_percentage",
+            18
+        )
+    )
 
-    gst_amount = taxable_amount * gst_percentage / 100
+    taxable_amount = max(
+        subtotal - discount,
+        0
+    )
 
-    total = taxable_amount + gst_amount
+    gst_amount = (
+        taxable_amount *
+        gst_percentage /
+        100
+    )
+
+    total = (
+        taxable_amount +
+        gst_amount
+    )
 
     return {
-        "subtotal": round(subtotal, 2),
-        "discount": round(discount, 2),
-        "taxable_amount": round(taxable_amount, 2),
+
+        "subtotal": round(
+            subtotal,
+            2
+        ),
+
+        "discount": round(
+            discount,
+            2
+        ),
+
+        "taxable_amount": round(
+            taxable_amount,
+            2
+        ),
+
         "gst_percentage": gst_percentage,
-        "gst_amount": round(gst_amount, 2),
-        "total": round(total, 2)
+
+        "gst_amount": round(
+            gst_amount,
+            2
+        ),
+
+        "total": round(
+            total,
+            2
+        )
     }
 
 
@@ -58,43 +132,79 @@ def calculate_totals(data):
 # =========================================================
 
 @router.post("")
-async def create_quotation(data: QuotationCreate):
+async def create_quotation(
+    data: QuotationCreate
+):
 
     try:
 
         quotation_data = data.model_dump()
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(
+            timezone.utc
+        )
 
+        # -------------------------------------------------
         # Generate quotation number
+        # -------------------------------------------------
+
         count = await database.quotations.count_documents({})
 
         quotation_number = (
             f"GKT-QTN-{count + 1:04d}"
         )
 
+        # -------------------------------------------------
         # Calculate totals
+        # -------------------------------------------------
+
         totals = calculate_totals(
             quotation_data
         )
 
-        quotation_data.update(totals)
+        quotation_data.update(
+            totals
+        )
 
-        quotation_data["quotation_number"] = quotation_number
+        # -------------------------------------------------
+        # Dates
+        # -------------------------------------------------
 
-        quotation_data["createdAt"] = now
-
-        quotation_data["updatedAt"] = now
-
-        quotation_data["valid_until"] = (
-            now +
-            timedelta(
-                days=quotation_data.get(
-                    "validity_days",
-                    15
-                )
+        validity_days = int(
+            quotation_data.get(
+                "validity_days",
+                15
             )
         )
+
+        quotation_data[
+            "quotation_number"
+        ] = quotation_number
+
+        quotation_data[
+            "createdAt"
+        ] = now
+
+        quotation_data[
+            "updatedAt"
+        ] = now
+
+        quotation_data[
+            "valid_until"
+        ] = (
+            now +
+            timedelta(
+                days=validity_days
+            )
+        )
+
+        # Default status
+        if not quotation_data.get("status"):
+            quotation_data["status"] = "Draft"
+
+        # -------------------------------------------------
+        # Insert
+        # -------------------------------------------------
 
         result = await database.quotations.insert_one(
             quotation_data
@@ -106,7 +216,9 @@ async def create_quotation(data: QuotationCreate):
                 "Quotation created successfully",
 
             "id":
-                str(result.inserted_id),
+                str(
+                    result.inserted_id
+                ),
 
             "quotation_number":
                 quotation_number
@@ -137,16 +249,48 @@ async def get_quotations():
 
         quotations = []
 
-        async for quotation in database.quotations.find(
-            {}
-        ).sort(
-            "createdAt",
-            -1
-        ):
+        cursor = (
+            database.quotations
+            .find({})
+            .sort(
+                "createdAt",
+                -1
+            )
+        )
+
+        async for quotation in cursor:
 
             quotation["_id"] = str(
                 quotation["_id"]
             )
+
+            # Convert datetime fields
+            if isinstance(
+                quotation.get("createdAt"),
+                datetime
+            ):
+                quotation["createdAt"] = (
+                    quotation["createdAt"]
+                    .isoformat()
+                )
+
+            if isinstance(
+                quotation.get("updatedAt"),
+                datetime
+            ):
+                quotation["updatedAt"] = (
+                    quotation["updatedAt"]
+                    .isoformat()
+                )
+
+            if isinstance(
+                quotation.get("valid_until"),
+                datetime
+            ):
+                quotation["valid_until"] = (
+                    quotation["valid_until"]
+                    .isoformat()
+                )
 
             quotations.append(
                 quotation
@@ -180,17 +324,9 @@ async def get_quotation(
 
         quotation = await database.quotations.find_one(
             {
-                "_id": ObjectId(
+                "_id": get_object_id(
                     quotation_id
                 )
-            }
-        )
-
-    except InvalidId:
-
-        quotation = await database.quotations.find_one(
-            {
-                "_id": quotation_id
             }
         )
 
@@ -230,61 +366,59 @@ async def update_quotation(
     data: QuotationUpdate
 ):
 
-    update_data = data.model_dump(
-        exclude_unset=True
-    )
-
     try:
 
         quotation = await database.quotations.find_one(
             {
-                "_id": ObjectId(
+                "_id": get_object_id(
                     quotation_id
                 )
             }
         )
 
-    except InvalidId:
+        if quotation is None:
 
-        quotation = await database.quotations.find_one(
-            {
-                "_id": quotation_id
-            }
+            raise HTTPException(
+                status_code=404,
+                detail="Quotation not found"
+            )
+
+        update_data = data.model_dump(
+            exclude_unset=True
         )
 
-    if quotation is None:
+        # -------------------------------------------------
+        # Merge existing + new data
+        # -------------------------------------------------
 
-        raise HTTPException(
-            status_code=404,
-            detail="Quotation not found"
+        merged_data = {
+            **quotation,
+            **update_data
+        }
+
+        # -------------------------------------------------
+        # Recalculate totals
+        # -------------------------------------------------
+
+        if (
+            "items" in update_data
+            or "discount" in update_data
+            or "gst_percentage" in update_data
+        ):
+
+            totals = calculate_totals(
+                merged_data
+            )
+
+            update_data.update(
+                totals
+            )
+
+        update_data[
+            "updatedAt"
+        ] = datetime.now(
+            timezone.utc
         )
-
-    # Merge existing data with updates
-    merged_data = {
-        **quotation,
-        **update_data
-    }
-
-    # Recalculate if financial fields/items changed
-    if (
-        "items" in update_data
-        or "discount" in update_data
-        or "gst_percentage" in update_data
-    ):
-
-        totals = calculate_totals(
-            merged_data
-        )
-
-        update_data.update(
-            totals
-        )
-
-    update_data["updatedAt"] = (
-        datetime.now(timezone.utc)
-    )
-
-    try:
 
         result = await database.quotations.update_one(
 
@@ -298,6 +432,23 @@ async def update_quotation(
 
         )
 
+        if result.matched_count == 0:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Quotation not found"
+            )
+
+        return {
+
+            "message":
+                "Quotation updated successfully"
+
+        }
+
+    except HTTPException:
+        raise
+
     except Exception as e:
 
         print(
@@ -309,20 +460,6 @@ async def update_quotation(
             status_code=500,
             detail="Failed to update quotation"
         )
-
-    if result.matched_count == 0:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Quotation not found"
-        )
-
-    return {
-
-        "message":
-            "Quotation updated successfully"
-
-    }
 
 
 # =========================================================
@@ -336,20 +473,28 @@ async def update_quotation_status(
 ):
 
     allowed_statuses = [
+
         "Draft",
         "Sent",
         "Viewed",
         "Accepted",
         "Rejected",
         "Expired"
+
     ]
+
+    status = status.strip()
 
     if status not in allowed_statuses:
 
         raise HTTPException(
             status_code=400,
             detail=(
-                "Invalid quotation status"
+                "Invalid quotation status. "
+                "Allowed values: "
+                + ", ".join(
+                    allowed_statuses
+                )
             )
         )
 
@@ -358,59 +503,57 @@ async def update_quotation_status(
         result = await database.quotations.update_one(
 
             {
-                "_id": ObjectId(
+                "_id": get_object_id(
                     quotation_id
                 )
             },
 
             {
                 "$set": {
+
                     "status": status,
+
                     "updatedAt":
                         datetime.now(
                             timezone.utc
                         )
+
                 }
             }
 
         )
 
-    except InvalidId:
+        if result.matched_count == 0:
 
-        result = await database.quotations.update_one(
+            raise HTTPException(
+                status_code=404,
+                detail="Quotation not found"
+            )
 
-            {
-                "_id": quotation_id
-            },
+        return {
 
-            {
-                "$set": {
-                    "status": status,
-                    "updatedAt":
-                        datetime.now(
-                            timezone.utc
-                        )
-                }
-            }
+            "message":
+                "Quotation status updated successfully",
 
+            "status":
+                status
+
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+
+        print(
+            "UPDATE QUOTATION STATUS ERROR:",
+            e
         )
-
-    if result.matched_count == 0:
 
         raise HTTPException(
-            status_code=404,
-            detail="Quotation not found"
+            status_code=500,
+            detail="Failed to update quotation status"
         )
-
-    return {
-
-        "message":
-            "Quotation status updated successfully",
-
-        "status":
-            status
-
-    }
 
 
 # =========================================================
@@ -426,19 +569,28 @@ async def delete_quotation(
 
         result = await database.quotations.delete_one(
             {
-                "_id": ObjectId(
+                "_id": get_object_id(
                     quotation_id
                 )
             }
         )
 
-    except InvalidId:
+        if result.deleted_count == 0:
 
-        result = await database.quotations.delete_one(
-            {
-                "_id": quotation_id
-            }
-        )
+            raise HTTPException(
+                status_code=404,
+                detail="Quotation not found"
+            )
+
+        return {
+
+            "message":
+                "Quotation deleted successfully"
+
+        }
+
+    except HTTPException:
+        raise
 
     except Exception as e:
 
@@ -452,16 +604,71 @@ async def delete_quotation(
             detail="Failed to delete quotation"
         )
 
-    if result.deleted_count == 0:
 
-        raise HTTPException(
-            status_code=404,
-            detail="Quotation not found"
+# =========================================================
+# DOWNLOAD QUOTATION PDF
+# =========================================================
+
+@router.get("/{quotation_id}/pdf")
+async def download_quotation_pdf(
+    quotation_id: str
+):
+
+    try:
+
+        quotation = await database.quotations.find_one(
+            {
+                "_id": get_object_id(
+                    quotation_id
+                )
+            }
         )
 
-    return {
+        if quotation is None:
 
-        "message":
-            "Quotation deleted successfully"
+            raise HTTPException(
+                status_code=404,
+                detail="Quotation not found"
+            )
 
-    }
+        # -------------------------------------------------
+        # Generate PDF
+        # -------------------------------------------------
+
+        pdf = generate_quotation_pdf(
+            quotation
+        )
+
+        filename = (
+            f"{quotation.get('quotation_number', 'quotation')}.pdf"
+        )
+
+        return StreamingResponse(
+
+            pdf,
+
+            media_type="application/pdf",
+
+            headers={
+
+                "Content-Disposition":
+                    f'attachment; filename="{filename}"'
+
+            }
+
+        )
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+
+        print(
+            "PDF GENERATION ERROR:",
+            e
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate quotation PDF"
+        )

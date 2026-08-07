@@ -3,71 +3,72 @@ from datetime import datetime, timezone
 
 from app.database import database
 
-
 router = APIRouter(
-    prefix="/api",
+    prefix="/api/analytics",
     tags=["Analytics"]
 )
 
 
 # =========================================================
-# GET ANALYTICS DASHBOARD DATA
+# GET ANALYTICS
 # =========================================================
 
-@router.get("/analytics")
+@router.get("")
 async def get_analytics():
 
     try:
 
-        # =================================================
-        # TOTAL COUNTS
-        # =================================================
+        # -------------------------------------------------
+        # ENQUIRIES
+        # -------------------------------------------------
 
         total_enquiries = await database.enquiries.count_documents({})
 
-        total_clients = await database.clients.count_documents({})
-
-        total_projects = await database.projects.count_documents({})
-
-
-        # =================================================
-        # ENQUIRY STATUS COUNTS
-        # =================================================
-
         new_enquiries = await database.enquiries.count_documents({
             "status": "New"
-        })
-
-        in_progress_enquiries = await database.enquiries.count_documents({
-            "status": "In Progress"
-        })
-
-        completed_enquiries = await database.enquiries.count_documents({
-            "status": "Completed"
-        })
-
-        waiting_client_enquiries = await database.enquiries.count_documents({
-            "status": "Waiting Client"
-        })
-
-        rejected_enquiries = await database.enquiries.count_documents({
-            "status": "Rejected"
         })
 
         converted_enquiries = await database.enquiries.count_documents({
             "status": "Converted"
         })
 
+        completed_enquiries = await database.enquiries.count_documents({
+            "status": "Completed"
+        })
 
-        # =================================================
-        # PROJECT STATUS COUNTS
-        # =================================================
+        pending_enquiries = await database.enquiries.count_documents({
+            "status": "Pending"
+        })
+
+        # -------------------------------------------------
+        # CLIENTS
+        # -------------------------------------------------
+
+        total_clients = await database.clients.count_documents({})
+
+        active_clients = await database.clients.count_documents({
+            "status": "Active"
+        })
+
+        pending_clients = await database.clients.count_documents({
+            "status": "Pending"
+        })
+
+        completed_clients = await database.clients.count_documents({
+            "status": "Completed"
+        })
+
+        # -------------------------------------------------
+        # PROJECTS
+        # -------------------------------------------------
+
+        total_projects = await database.projects.count_documents({})
 
         pending_projects = await database.projects.count_documents({
             "status": "Pending"
         })
 
-        project_in_progress = await database.projects.count_documents({
+        in_progress_projects = await database.projects.count_documents({
             "status": "In Progress"
         })
 
@@ -75,248 +76,229 @@ async def get_analytics():
             "status": "Completed"
         })
 
+        # -------------------------------------------------
+        # QUOTATIONS
+        # -------------------------------------------------
 
-        # =================================================
-        # MONTHLY ENQUIRIES
-        # =================================================
+        total_quotations = await database.quotations.count_documents({})
 
-        current_year = datetime.now(timezone.utc).year
+        draft_quotations = await database.quotations.count_documents({
+            "status": "Draft"
+        })
 
-        monthly_enquiries = {
-            "Jan": 0,
-            "Feb": 0,
-            "Mar": 0,
-            "Apr": 0,
-            "May": 0,
-            "Jun": 0,
-            "Jul": 0,
-            "Aug": 0,
-            "Sep": 0,
-            "Oct": 0,
-            "Nov": 0,
-            "Dec": 0
-        }
+        sent_quotations = await database.quotations.count_documents({
+            "status": "Sent"
+        })
 
+        accepted_quotations = await database.quotations.count_documents({
+            "status": "Accepted"
+        })
 
-        # Get enquiries that have createdAt
-        async for enquiry in database.enquiries.find(
+        rejected_quotations = await database.quotations.count_documents({
+            "status": "Rejected"
+        })
+
+        # -------------------------------------------------
+        # QUOTATION REVENUE
+        # -------------------------------------------------
+
+        quotation_cursor = database.quotations.find(
+            {},
             {
-                "createdAt": {
-                    "$exists": True
-                }
+                "total": 1
             }
-        ):
+        )
 
-            created_at = enquiry.get("createdAt")
+        quotation_revenue = 0.0
 
-            if not created_at:
-                continue
+        async for quotation in quotation_cursor:
 
-
-            # MongoDB normally returns datetime
-            if isinstance(created_at, datetime):
-
-                if created_at.year == current_year:
-
-                    month_number = created_at.month
-
-                    month_name = datetime(
-                        current_year,
-                        month_number,
-                        1
-                    ).strftime("%b")
-
-                    monthly_enquiries[month_name] += 1
-
-
-        # =================================================
-        # CONVERSION RATE
-        # =================================================
-
-        if total_enquiries > 0:
-
-            conversion_rate = round(
-                (converted_enquiries / total_enquiries) * 100,
-                2
+            quotation_revenue += float(
+                quotation.get("total", 0) or 0
             )
 
-        else:
+        # -------------------------------------------------
+        # ACCEPTED REVENUE
+        # -------------------------------------------------
 
-            conversion_rate = 0
+        accepted_cursor = database.quotations.find(
+            {
+                "status": "Accepted"
+            },
+            {
+                "total": 1
+            }
+        )
 
+        accepted_revenue = 0.0
 
-        # =================================================
-        # REVENUE
-        # =================================================
+        async for quotation in accepted_cursor:
 
-        total_revenue = 0
+            accepted_revenue += float(
+                quotation.get("total", 0) or 0
+            )
 
-        async for project in database.projects.find({}):
+        # -------------------------------------------------
+        # MONTHLY ENQUIRIES
+        # -------------------------------------------------
 
-            amount = project.get("revenue")
+        current_year = datetime.now(
+            timezone.utc
+        ).year
 
-            if amount is None:
-                amount = project.get("budget")
+        monthly_enquiries = []
 
-            if amount is None:
-                amount = project.get("amount")
+        for month in range(1, 13):
 
-            if amount is None:
-                continue
+            start_date = datetime(
+                current_year,
+                month,
+                1,
+                tzinfo=timezone.utc
+            )
 
-            try:
+            if month == 12:
 
-                total_revenue += float(amount)
+                end_date = datetime(
+                    current_year + 1,
+                    1,
+                    1,
+                    tzinfo=timezone.utc
+                )
 
-            except (ValueError, TypeError):
+            else:
 
-                continue
+                end_date = datetime(
+                    current_year,
+                    month + 1,
+                    1,
+                    tzinfo=timezone.utc
+                )
 
+            count = await database.enquiries.count_documents({
 
-        # =================================================
-        # RECENT ENQUIRIES
-        # =================================================
+                "createdAt": {
+                    "$gte": start_date,
+                    "$lt": end_date
+                }
 
-        recent_enquiries = []
+            })
 
-        cursor = database.enquiries.find(
-            {}
-        ).sort(
-            "createdAt",
-            -1
-        ).limit(5)
+            monthly_enquiries.append({
+                "month": start_date.strftime("%b"),
+                "count": count
+            })
 
+        # -------------------------------------------------
+        # MONTHLY QUOTATIONS
+        # -------------------------------------------------
 
-        async for enquiry in cursor:
+        monthly_quotations = []
 
-            enquiry["_id"] = str(enquiry["_id"])
+        for month in range(1, 13):
 
-            created_at = enquiry.get("createdAt")
+            start_date = datetime(
+                current_year,
+                month,
+                1,
+                tzinfo=timezone.utc
+            )
 
-            if isinstance(created_at, datetime):
+            if month == 12:
 
-                enquiry["createdAt"] = created_at.isoformat()
+                end_date = datetime(
+                    current_year + 1,
+                    1,
+                    1,
+                    tzinfo=timezone.utc
+                )
 
-            recent_enquiries.append(enquiry)
+            else:
 
+                end_date = datetime(
+                    current_year,
+                    month + 1,
+                    1,
+                    tzinfo=timezone.utc
+                )
 
-        # =================================================
-        # RECENT PROJECTS
-        # =================================================
+            count = await database.quotations.count_documents({
 
-        recent_projects = []
+                "createdAt": {
+                    "$gte": start_date,
+                    "$lt": end_date
+                }
 
-        cursor = database.projects.find(
-            {}
-        ).sort(
-            "createdAt",
-            -1
-        ).limit(5)
+            })
 
+            monthly_quotations.append({
+                "month": start_date.strftime("%b"),
+                "count": count
+            })
 
-        async for project in cursor:
-
-            project["_id"] = str(project["_id"])
-
-            created_at = project.get("createdAt")
-
-            if isinstance(created_at, datetime):
-
-                project["createdAt"] = created_at.isoformat()
-
-            recent_projects.append(project)
-
-
-        # =================================================
+        # -------------------------------------------------
         # RESPONSE
-        # =================================================
+        # -------------------------------------------------
 
         return {
 
             "success": True,
 
-            # -----------------------------
-            # Main cards
-            # -----------------------------
-
-            "total_enquiries": total_enquiries,
-
-            "total_clients": total_clients,
-
-            "total_projects": total_projects,
-
-            "revenue": round(total_revenue, 2),
-
-
-            # -----------------------------
-            # Enquiry statistics
-            # -----------------------------
-
-            "enquiry_status": {
-
-                "New": new_enquiries,
-
-                "In Progress": in_progress_enquiries,
-
-                "Completed": completed_enquiries,
-
-                "Waiting Client": waiting_client_enquiries,
-
-                "Rejected": rejected_enquiries,
-
-                "Converted": converted_enquiries
-
+            "enquiries": {
+                "total": total_enquiries,
+                "new": new_enquiries,
+                "converted": converted_enquiries,
+                "completed": completed_enquiries,
+                "pending": pending_enquiries
             },
 
-
-            # -----------------------------
-            # Project statistics
-            # -----------------------------
-
-            "project_status": {
-
-                "Pending": pending_projects,
-
-                "In Progress": project_in_progress,
-
-                "Completed": completed_projects
-
+            "clients": {
+                "total": total_clients,
+                "active": active_clients,
+                "pending": pending_clients,
+                "completed": completed_clients
             },
 
+            "projects": {
+                "total": total_projects,
+                "pending": pending_projects,
+                "in_progress": in_progress_projects,
+                "completed": completed_projects
+            },
 
-            # -----------------------------
-            # Monthly enquiries
-            # -----------------------------
+            "quotations": {
+                "total": total_quotations,
+                "draft": draft_quotations,
+                "sent": sent_quotations,
+                "accepted": accepted_quotations,
+                "rejected": rejected_quotations
+            },
+
+            "revenue": {
+                "quotation_revenue": round(
+                    quotation_revenue,
+                    2
+                ),
+                "accepted_revenue": round(
+                    accepted_revenue,
+                    2
+                )
+            },
 
             "monthly_enquiries": monthly_enquiries,
 
-
-            # -----------------------------
-            # Conversion
-            # -----------------------------
-
-            "conversion_rate": conversion_rate,
-
-
-            # -----------------------------
-            # Recent data
-            # -----------------------------
-
-            "recent_enquiries": recent_enquiries,
-
-            "recent_projects": recent_projects
+            "monthly_quotations": monthly_quotations
 
         }
 
-
     except Exception as e:
 
-        print("ANALYTICS ERROR:", e)
+        print(
+            "ANALYTICS ERROR:",
+            e
+        )
 
         raise HTTPException(
-
             status_code=500,
-
-            detail=f"Failed to load analytics: {str(e)}"
-
+            detail="Failed to load analytics"
         )

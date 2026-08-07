@@ -4,51 +4,43 @@ import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import "../css/quotations.css";
 
-const API_URL = "http://127.0.0.1:8000/api";
-
-const EMPTY_ITEM = {
-  service: "",
-  description: "",
-  quantity: 1,
-  unit_price: 0,
-};
+const API_URL = "http://127.0.0.1:8000/api/quotations";
 
 const EMPTY_FORM = {
-  client_id: "",
   client_name: "",
+  company_name: "",
   client_email: "",
   client_phone: "",
   project_name: "",
-  quotation_date: "",
-  valid_until: "",
-  items: [{ ...EMPTY_ITEM }],
+  validity_days: 15,
   discount: 0,
   gst_percentage: 18,
-  notes: "",
-  terms:
-    "50% advance payment. Remaining 50% after project completion.",
   status: "Draft",
+  terms:
+    "1. This quotation is valid for the specified validity period.\n" +
+    "2. Payment terms will be discussed and agreed upon before project commencement.\n" +
+    "3. Any additional requirements outside the agreed scope may be charged separately.\n" +
+    "4. Project timelines depend on timely client feedback and approvals.",
+  items: [
+    {
+      description: "",
+      quantity: 1,
+      rate: 0,
+    },
+  ],
 };
-
-const STATUS_OPTIONS = [
-  "Draft",
-  "Sent",
-  "Accepted",
-  "Rejected",
-  "Expired",
-];
 
 function Quotations() {
   const [quotations, setQuotations] = useState([]);
-  const [clients, setClients] = useState([]);
 
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
 
   const [showForm, setShowForm] = useState(false);
-  const [showView, setShowView] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
-  const [selectedQuotation, setSelectedQuotation] = useState(null);
   const [editingId, setEditingId] = useState(null);
+  const [selectedQuotation, setSelectedQuotation] = useState(null);
 
   const [form, setForm] = useState(EMPTY_FORM);
 
@@ -56,25 +48,17 @@ function Quotations() {
   const [saving, setSaving] = useState(false);
 
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
-  // =====================================================
-  // LOAD DATA
-  // =====================================================
-
-  useEffect(() => {
-    fetchQuotations();
-    fetchClients();
-  }, []);
+  // =========================================================
+  // LOAD QUOTATIONS
+  // =========================================================
 
   const fetchQuotations = async () => {
     try {
       setLoading(true);
       setError("");
 
-      const response = await axios.get(
-        `${API_URL}/quotations`
-      );
+      const response = await axios.get(API_URL);
 
       setQuotations(response.data || []);
     } catch (err) {
@@ -89,86 +73,43 @@ function Quotations() {
     }
   };
 
-  const fetchClients = async () => {
-    try {
-      const response = await axios.get(
-        `${API_URL}/clients`
-      );
+  useEffect(() => {
+    fetchQuotations();
+  }, []);
 
-      setClients(response.data || []);
-    } catch (err) {
-      console.error("FETCH CLIENTS ERROR:", err);
-    }
-  };
-
-  // =====================================================
-  // SEARCH
-  // =====================================================
+  // =========================================================
+  // FILTER
+  // =========================================================
 
   const filteredQuotations = useMemo(() => {
-    const keyword = search.toLowerCase().trim();
-
-    if (!keyword) {
-      return quotations;
-    }
-
     return quotations.filter((quotation) => {
-      return (
+      const searchText = search.toLowerCase();
+
+      const matchesSearch =
         quotation.quotation_number
           ?.toLowerCase()
-          .includes(keyword) ||
+          .includes(searchText) ||
         quotation.client_name
           ?.toLowerCase()
-          .includes(keyword) ||
+          .includes(searchText) ||
+        quotation.company_name
+          ?.toLowerCase()
+          .includes(searchText) ||
         quotation.project_name
           ?.toLowerCase()
-          .includes(keyword) ||
-        quotation.status
-          ?.toLowerCase()
-          .includes(keyword)
-      );
+          .includes(searchText);
+
+      const matchesStatus =
+        statusFilter === "All" ||
+        quotation.status === statusFilter;
+
+      return matchesSearch && matchesStatus;
     });
-  }, [quotations, search]);
+  }, [quotations, search, statusFilter]);
 
-  // =====================================================
-  // CLIENT SELECTION
-  // =====================================================
-
-  const handleClientChange = (e) => {
-    const clientId = e.target.value;
-
-    const client = clients.find(
-      (item) => item._id === clientId
-    );
-
-    if (!client) {
-      setForm((prev) => ({
-        ...prev,
-        client_id: "",
-        client_name: "",
-        client_email: "",
-        client_phone: "",
-      }));
-
-      return;
-    }
-
-    setForm((prev) => ({
-      ...prev,
-      client_id: client._id,
-      client_name:
-        client.company ||
-        client.name ||
-        client.contact ||
-        "",
-      client_email: client.email || "",
-      client_phone: client.phone || "",
-    }));
-  };
-
-  // =====================================================
+  // =========================================================
   // FORM CHANGE
-  // =====================================================
+  // =========================================================
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -179,21 +120,20 @@ function Quotations() {
     }));
   };
 
-  // =====================================================
+  // =========================================================
   // ITEM CHANGE
-  // =====================================================
+  // =========================================================
 
-  const handleItemChange = (
-    index,
-    field,
-    value
-  ) => {
+  const handleItemChange = (index, field, value) => {
     setForm((prev) => {
       const items = [...prev.items];
 
       items[index] = {
         ...items[index],
-        [field]: value,
+        [field]:
+          field === "quantity" || field === "rate"
+            ? Number(value)
+            : value,
       };
 
       return {
@@ -203,9 +143,9 @@ function Quotations() {
     });
   };
 
-  // =====================================================
+  // =========================================================
   // ADD ITEM
-  // =====================================================
+  // =========================================================
 
   const addItem = () => {
     setForm((prev) => ({
@@ -213,312 +153,239 @@ function Quotations() {
       items: [
         ...prev.items,
         {
-          ...EMPTY_ITEM,
+          description: "",
+          quantity: 1,
+          rate: 0,
         },
       ],
     }));
   };
 
-  // =====================================================
+  // =========================================================
   // REMOVE ITEM
-  // =====================================================
+  // =========================================================
 
   const removeItem = (index) => {
-    if (form.items.length === 1) {
-      return;
-    }
+    setForm((prev) => {
+      if (prev.items.length === 1) {
+        return prev;
+      }
 
-    setForm((prev) => ({
-      ...prev,
-      items: prev.items.filter(
-        (_, itemIndex) => itemIndex !== index
-      ),
-    }));
+      return {
+        ...prev,
+        items: prev.items.filter(
+          (_, itemIndex) => itemIndex !== index
+        ),
+      };
+    });
   };
 
-  // =====================================================
-  // CALCULATIONS
-  // =====================================================
+  // =========================================================
+  // CALCULATE TOTALS
+  // =========================================================
 
-  const subtotal = useMemo(() => {
-    return form.items.reduce(
-      (total, item) => {
-        const quantity =
-          Number(item.quantity) || 0;
+  const calculatedTotals = useMemo(() => {
+    const subtotal = form.items.reduce((sum, item) => {
+      const quantity = Number(item.quantity) || 0;
+      const rate = Number(item.rate) || 0;
 
-        const price =
-          Number(item.unit_price) || 0;
+      return sum + quantity * rate;
+    }, 0);
 
-        return total + quantity * price;
-      },
+    const discount = Number(form.discount) || 0;
+
+    const gstPercentage =
+      Number(form.gst_percentage) || 0;
+
+    const taxableAmount = Math.max(
+      subtotal - discount,
       0
     );
-  }, [form.items]);
 
-  const discount = Math.min(
-    Number(form.discount) || 0,
-    subtotal
-  );
+    const gstAmount =
+      (taxableAmount * gstPercentage) / 100;
 
-  const taxableAmount =
-    subtotal - discount;
+    const total = taxableAmount + gstAmount;
 
-  const gstAmount =
-    taxableAmount *
-    ((Number(form.gst_percentage) || 0) / 100);
+    return {
+      subtotal,
+      discount,
+      taxableAmount,
+      gstPercentage,
+      gstAmount,
+      total,
+    };
+  }, [
+    form.items,
+    form.discount,
+    form.gst_percentage,
+  ]);
 
-  const grandTotal =
-    taxableAmount + gstAmount;
-
-  // =====================================================
+  // =========================================================
   // RESET FORM
-  // =====================================================
+  // =========================================================
 
   const resetForm = () => {
-    const today = new Date();
-
-    const validDate = new Date();
-    validDate.setDate(today.getDate() + 14);
-
     setForm({
       ...EMPTY_FORM,
-
-      quotation_date: formatDateForInput(
-        today
-      ),
-
-      valid_until: formatDateForInput(
-        validDate
-      ),
-
-      items: [{ ...EMPTY_ITEM }],
+      items: [
+        {
+          description: "",
+          quantity: 1,
+          rate: 0,
+        },
+      ],
     });
 
     setEditingId(null);
+    setError("");
   };
 
-  // =====================================================
+  // =========================================================
   // OPEN CREATE
-  // =====================================================
+  // =========================================================
 
-  const handleAddQuotation = () => {
-    setError("");
-    setSuccess("");
-
+  const handleCreate = () => {
     resetForm();
-
     setShowForm(true);
   };
 
-  // =====================================================
+  // =========================================================
   // EDIT
-  // =====================================================
+  // =========================================================
 
   const handleEdit = (quotation) => {
-    setError("");
-    setSuccess("");
-
     setEditingId(quotation._id);
 
     setForm({
-      client_id: quotation.client_id || "",
-
-      client_name:
-        quotation.client_name || "",
-
-      client_email:
-        quotation.client_email || "",
-
-      client_phone:
-        quotation.client_phone || "",
-
-      project_name:
-        quotation.project_name || "",
-
-      quotation_date:
-        formatDateForInput(
-          quotation.quotation_date
-        ),
-
-      valid_until:
-        formatDateForInput(
-          quotation.valid_until
-        ),
-
+      client_name: quotation.client_name || "",
+      company_name: quotation.company_name || "",
+      client_email: quotation.client_email || "",
+      client_phone: quotation.client_phone || "",
+      project_name: quotation.project_name || "",
+      validity_days: quotation.validity_days || 15,
+      discount: quotation.discount || 0,
+      gst_percentage:
+        quotation.gst_percentage ?? 18,
+      status: quotation.status || "Draft",
+      terms: quotation.terms || "",
       items:
         quotation.items?.length > 0
           ? quotation.items.map((item) => ({
-              service:
-                item.service || "",
-
               description:
                 item.description || "",
-
               quantity:
-                item.quantity || 1,
-
-              unit_price:
-                item.unit_price || 0,
+                Number(item.quantity) || 1,
+              rate:
+                Number(item.rate) || 0,
             }))
-          : [{ ...EMPTY_ITEM }],
-
-      discount:
-        quotation.discount || 0,
-
-      gst_percentage:
-        quotation.gst_percentage ?? 18,
-
-      notes:
-        quotation.notes || "",
-
-      terms:
-        quotation.terms || "",
-
-      status:
-        quotation.status || "Draft",
+          : [
+              {
+                description: "",
+                quantity: 1,
+                rate: 0,
+              },
+            ],
     });
 
     setShowForm(true);
   };
 
-  // =====================================================
-  // SAVE
-  // =====================================================
+  // =========================================================
+  // VALIDATION
+  // =========================================================
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    setError("");
-    setSuccess("");
-
+  const validateForm = () => {
     if (!form.client_name.trim()) {
-      setError("Please select a client.");
-      return;
+      alert("Please enter client name.");
+      return false;
+    }
+
+    if (!form.client_email.trim()) {
+      alert("Please enter client email.");
+      return false;
     }
 
     if (!form.project_name.trim()) {
-      setError("Please enter the project name.");
-      return;
+      alert("Please enter project name.");
+      return false;
     }
 
-    if (!form.items.length) {
-      setError(
-        "Please add at least one service."
-      );
-      return;
-    }
-
-    const hasInvalidItem = form.items.some(
+    const invalidItem = form.items.some(
       (item) =>
-        !item.service.trim() ||
+        !item.description.trim() ||
         Number(item.quantity) <= 0 ||
-        Number(item.unit_price) < 0
+        Number(item.rate) < 0
     );
 
-    if (hasInvalidItem) {
-      setError(
-        "Please enter valid service, quantity and price."
+    if (invalidItem) {
+      alert(
+        "Please enter valid details for all billing items."
       );
+      return false;
+    }
+
+    return true;
+  };
+
+  // =========================================================
+  // SAVE / UPDATE
+  // =========================================================
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
       return;
     }
 
     try {
       setSaving(true);
+      setError("");
 
       const payload = {
-        client_id:
-          form.client_id || null,
+        ...form,
 
-        client_name:
-          form.client_name,
-
-        client_email:
-          form.client_email,
-
-        client_phone:
-          form.client_phone,
-
-        project_name:
-          form.project_name,
-
-        quotation_date:
-          form.quotation_date
-            ? new Date(
-                form.quotation_date
-              ).toISOString()
-            : null,
-
-        valid_until:
-          form.valid_until
-            ? new Date(
-                form.valid_until
-              ).toISOString()
-            : null,
-
-        items: form.items.map(
-          (item) => ({
-            service:
-              item.service,
-
-            description:
-              item.description,
-
-            quantity:
-              Number(item.quantity),
-
-            unit_price:
-              Number(item.unit_price),
-          })
-        ),
+        validity_days:
+          Number(form.validity_days) || 15,
 
         discount:
           Number(form.discount) || 0,
 
         gst_percentage:
-          Number(form.gst_percentage) || 0,
+          Number(form.gst_percentage) || 18,
 
-        notes:
-          form.notes,
-
-        terms:
-          form.terms,
-
-        status:
-          form.status,
+        items: form.items.map((item) => ({
+          description: item.description,
+          quantity: Number(item.quantity),
+          rate: Number(item.rate),
+        })),
       };
 
       if (editingId) {
         await axios.put(
-          `${API_URL}/quotations/${editingId}`,
+          `${API_URL}/${editingId}`,
           payload
         );
 
-        setSuccess(
-          "Quotation updated successfully."
-        );
+        alert("Quotation updated successfully.");
       } else {
-        await axios.post(
-          `${API_URL}/quotations`,
+        const response = await axios.post(
+          API_URL,
           payload
         );
 
-        setSuccess(
-          "Quotation created successfully."
+        alert(
+          `Quotation ${response.data.quotation_number} created successfully.`
         );
       }
 
       setShowForm(false);
-
-      setEditingId(null);
-
       resetForm();
 
       await fetchQuotations();
     } catch (err) {
-      console.error(
-        "SAVE QUOTATION ERROR:",
-        err
-      );
+      console.error("SAVE QUOTATION ERROR:", err);
 
       setError(
         err.response?.data?.detail ||
@@ -529,13 +396,22 @@ function Quotations() {
     }
   };
 
-  // =====================================================
-  // DELETE
-  // =====================================================
+  // =========================================================
+  // VIEW
+  // =========================================================
 
-  const handleDelete = async (id) => {
+  const handleView = (quotation) => {
+    setSelectedQuotation(quotation);
+    setShowPreview(true);
+  };
+
+  // =========================================================
+  // DELETE
+  // =========================================================
+
+  const handleDelete = async (quotation) => {
     const confirmed = window.confirm(
-      "Are you sure you want to delete this quotation?"
+      `Delete quotation ${quotation.quotation_number}?`
     );
 
     if (!confirmed) {
@@ -544,40 +420,42 @@ function Quotations() {
 
     try {
       await axios.delete(
-        `${API_URL}/quotations/${id}`
+        `${API_URL}/${quotation._id}`
       );
 
-      setSuccess(
-        "Quotation deleted successfully."
+      setQuotations((prev) =>
+        prev.filter(
+          (item) => item._id !== quotation._id
+        )
       );
 
-      await fetchQuotations();
+      alert("Quotation deleted successfully.");
     } catch (err) {
-      console.error(
-        "DELETE QUOTATION ERROR:",
-        err
-      );
+      console.error("DELETE QUOTATION ERROR:", err);
 
-      setError(
+      alert(
         err.response?.data?.detail ||
           "Failed to delete quotation."
       );
     }
   };
 
-  // =====================================================
-  // STATUS
-  // =====================================================
+  // =========================================================
+  // UPDATE STATUS
+  // =========================================================
 
   const handleStatusChange = async (
     quotation,
-    status
+    newStatus
   ) => {
     try {
       await axios.put(
-        `${API_URL}/quotations/${quotation._id}/status`,
+        `${API_URL}/${quotation._id}/status`,
+        null,
         {
-          status,
+          params: {
+            status: newStatus,
+          },
         }
       );
 
@@ -586,52 +464,345 @@ function Quotations() {
           item._id === quotation._id
             ? {
                 ...item,
-                status,
+                status: newStatus,
               }
             : item
         )
       );
-
-      setSuccess(
-        "Quotation status updated."
-      );
     } catch (err) {
       console.error(
-        "STATUS UPDATE ERROR:",
+        "UPDATE QUOTATION STATUS ERROR:",
         err
       );
 
-      setError(
+      alert(
         err.response?.data?.detail ||
           "Failed to update status."
       );
     }
   };
 
-  // =====================================================
-  // VIEW
-  // =====================================================
+  // =========================================================
+  // DOWNLOAD PDF
+  // =========================================================
 
-  const handleView = (quotation) => {
-    setSelectedQuotation(quotation);
+  const handleDownloadPDF = async (quotation) => {
+    try {
+      const response = await axios.get(
+        `${API_URL}/${quotation._id}/pdf`,
+        {
+          responseType: "blob",
+        }
+      );
 
-    setShowView(true);
+      const blob = new Blob(
+        [response.data],
+        {
+          type: "application/pdf",
+        }
+      );
+
+      const url =
+        window.URL.createObjectURL(blob);
+
+      const link =
+        document.createElement("a");
+
+      link.href = url;
+
+      link.download =
+        `${quotation.quotation_number || "quotation"}.pdf`;
+
+      document.body.appendChild(link);
+
+      link.click();
+
+      link.remove();
+
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(
+        "DOWNLOAD PDF ERROR:",
+        err
+      );
+
+      alert("Failed to download quotation PDF.");
+    }
   };
 
-  // =====================================================
-  // FORMAT CURRENCY
-  // =====================================================
+  // =========================================================
+  // PRINT
+  // =========================================================
 
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat(
-      "en-IN",
-      {
-        style: "currency",
-        currency: "INR",
-        maximumFractionDigits: 2,
-      }
-    ).format(Number(value) || 0);
+  const handlePrint = (quotation) => {
+    const printWindow =
+      window.open(
+        "",
+        "_blank",
+        "width=900,height=700"
+      );
+
+    if (!printWindow) {
+      alert(
+        "Please allow pop-ups to print the quotation."
+      );
+      return;
+    }
+
+    const itemsHTML =
+      quotation.items
+        ?.map(
+          (item, index) => `
+            <tr>
+              <td>${index + 1}</td>
+              <td>${escapeHTML(
+                item.description || ""
+              )}</td>
+              <td>${item.quantity}</td>
+              <td>₹${Number(
+                item.rate || 0
+              ).toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+              })}</td>
+              <td>₹${Number(
+                item.amount ||
+                  Number(item.quantity || 0) *
+                    Number(item.rate || 0)
+              ).toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+              })}</td>
+            </tr>
+          `
+        )
+        .join("") || "";
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${quotation.quotation_number}</title>
+
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            padding: 40px;
+            color: #1e293b;
+          }
+
+          .header {
+            text-align: center;
+            border-bottom: 2px solid #2563eb;
+            padding-bottom: 20px;
+            margin-bottom: 25px;
+          }
+
+          .header h1 {
+            color: #2563eb;
+            margin: 0;
+          }
+
+          .header p {
+            margin: 6px 0;
+            color: #64748b;
+          }
+
+          h2 {
+            text-align: right;
+          }
+
+          .info {
+            background: #f8fafc;
+            padding: 20px;
+            margin-bottom: 25px;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+          }
+
+          th {
+            background: #2563eb;
+            color: white;
+            padding: 12px;
+            text-align: left;
+          }
+
+          td {
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+          }
+
+          .totals {
+            width: 350px;
+            margin-left: auto;
+            margin-top: 20px;
+          }
+
+          .total {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2563eb;
+          }
+
+          .terms {
+            margin-top: 35px;
+            white-space: pre-line;
+          }
+        </style>
+      </head>
+
+      <body>
+
+        <div class="header">
+          <h1>GKT SOFTWARE SOLUTION</h1>
+
+          <p>
+            Software Development • Web Development • AI Solutions
+          </p>
+
+          <p>
+            Avadi, Chennai - 600054, Tamil Nadu
+            | +91 8778341227
+            | gktsoftwaresolution@gmail.com
+          </p>
+        </div>
+
+        <h2>QUOTATION</h2>
+
+        <div class="info">
+          <p>
+            <strong>Quotation No:</strong>
+            ${quotation.quotation_number || "-"}
+          </p>
+
+          <p>
+            <strong>Client:</strong>
+            ${escapeHTML(
+              quotation.client_name || "-"
+            )}
+          </p>
+
+          <p>
+            <strong>Company:</strong>
+            ${escapeHTML(
+              quotation.company_name || "-"
+            )}
+          </p>
+
+          <p>
+            <strong>Email:</strong>
+            ${escapeHTML(
+              quotation.client_email || "-"
+            )}
+          </p>
+
+          <p>
+            <strong>Phone:</strong>
+            ${escapeHTML(
+              quotation.client_phone || "-"
+            )}
+          </p>
+
+          <p>
+            <strong>Project:</strong>
+            ${escapeHTML(
+              quotation.project_name || "-"
+            )}
+          </p>
+        </div>
+
+        <h3>PROJECT BILLING</h3>
+
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Description</th>
+              <th>Qty</th>
+              <th>Rate</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            ${itemsHTML}
+          </tbody>
+        </table>
+
+        <div class="totals">
+
+          <p>
+            Subtotal:
+            ₹${Number(
+              quotation.subtotal || 0
+            ).toLocaleString("en-IN", {
+              minimumFractionDigits: 2,
+            })}
+          </p>
+
+          <p>
+            Discount:
+            - ₹${Number(
+              quotation.discount || 0
+            ).toLocaleString("en-IN", {
+              minimumFractionDigits: 2,
+            })}
+          </p>
+
+          <p>
+            Taxable Amount:
+            ₹${Number(
+              quotation.taxable_amount || 0
+            ).toLocaleString("en-IN", {
+              minimumFractionDigits: 2,
+            })}
+          </p>
+
+          <p>
+            GST (${quotation.gst_percentage || 0}%):
+            ₹${Number(
+              quotation.gst_amount || 0
+            ).toLocaleString("en-IN", {
+              minimumFractionDigits: 2,
+            })}
+          </p>
+
+          <p class="total">
+            TOTAL:
+            ₹${Number(
+              quotation.total || 0
+            ).toLocaleString("en-IN", {
+              minimumFractionDigits: 2,
+            })}
+          </p>
+
+        </div>
+
+        <div class="terms">
+          <h3>TERMS & CONDITIONS</h3>
+          ${escapeHTML(
+            quotation.terms || ""
+          )}
+        </div>
+
+        <script>
+          window.onload = function() {
+            window.print();
+          };
+        </script>
+
+      </body>
+      </html>
+    `);
+
+    printWindow.document.close();
   };
+
+  // =========================================================
+  // RENDER
+  // =========================================================
 
   return (
     <>
@@ -641,142 +812,46 @@ function Quotations() {
         <Topbar />
 
         <div className="dashboard-content">
+
           <div className="quotations-page">
 
-            {/* =====================================
-                HEADER
-            ====================================== */}
+            {/* HEADER */}
 
             <div className="quotations-header">
 
               <div>
-                <span className="quotation-eyebrow">
+                <p className="quotation-eyebrow">
                   GKT CRM
-                </span>
+                </p>
 
                 <h2>
                   Quotations
                 </h2>
 
                 <p>
-                  Create, manage and track
-                  project quotations.
+                  Create, manage and send
+                  professional project quotations.
                 </p>
               </div>
 
               <button
                 className="add-quotation-btn"
-                onClick={
-                  handleAddQuotation
-                }
+                onClick={handleCreate}
               >
                 + Create Quotation
               </button>
 
             </div>
 
-            {/* =====================================
-                ALERTS
-            ====================================== */}
+            {/* ERROR */}
 
             {error && (
-              <div className="quotation-alert error">
+              <div className="quotation-error">
                 {error}
               </div>
             )}
 
-            {success && (
-              <div className="quotation-alert success">
-                {success}
-              </div>
-            )}
-
-            {/* =====================================
-                SUMMARY
-            ====================================== */}
-
-            <div className="quotation-summary">
-
-              <div className="summary-card">
-                <span>
-                  Total Quotations
-                </span>
-
-                <strong>
-                  {quotations.length}
-                </strong>
-              </div>
-
-              <div className="summary-card">
-                <span>
-                  Draft
-                </span>
-
-                <strong>
-                  {
-                    quotations.filter(
-                      (q) =>
-                        q.status === "Draft"
-                    ).length
-                  }
-                </strong>
-              </div>
-
-              <div className="summary-card">
-                <span>
-                  Sent
-                </span>
-
-                <strong>
-                  {
-                    quotations.filter(
-                      (q) =>
-                        q.status === "Sent"
-                    ).length
-                  }
-                </strong>
-              </div>
-
-              <div className="summary-card">
-                <span>
-                  Accepted
-                </span>
-
-                <strong>
-                  {
-                    quotations.filter(
-                      (q) =>
-                        q.status ===
-                        "Accepted"
-                    ).length
-                  }
-                </strong>
-              </div>
-
-              <div className="summary-card money">
-                <span>
-                  Quotation Value
-                </span>
-
-                <strong>
-                  {formatCurrency(
-                    quotations.reduce(
-                      (sum, q) =>
-                        sum +
-                        Number(
-                          q.grand_total || 0
-                        ),
-                      0
-                    )
-                  )}
-                </strong>
-              </div>
-
-            </div>
-
-            {/* =====================================
-                SEARCH
-            ====================================== */}
+            {/* TOOLBAR */}
 
             <div className="quotation-toolbar">
 
@@ -785,60 +860,62 @@ function Quotations() {
                 placeholder="Search quotation, client or project..."
                 value={search}
                 onChange={(e) =>
-                  setSearch(
-                    e.target.value
-                  )
+                  setSearch(e.target.value)
                 }
               />
 
-              <button
-                className="refresh-btn"
-                onClick={
-                  fetchQuotations
+              <select
+                value={statusFilter}
+                onChange={(e) =>
+                  setStatusFilter(e.target.value)
                 }
               >
-                ↻ Refresh
-              </button>
+                <option value="All">
+                  All Status
+                </option>
+
+                <option value="Draft">
+                  Draft
+                </option>
+
+                <option value="Sent">
+                  Sent
+                </option>
+
+                <option value="Viewed">
+                  Viewed
+                </option>
+
+                <option value="Accepted">
+                  Accepted
+                </option>
+
+                <option value="Rejected">
+                  Rejected
+                </option>
+
+                <option value="Expired">
+                  Expired
+                </option>
+              </select>
 
             </div>
 
-            {/* =====================================
-                TABLE
-            ====================================== */}
+            {/* TABLE */}
 
             <div className="quotation-table-container">
 
-              <table className="quotation-table">
+              <table>
 
                 <thead>
                   <tr>
-                    <th>
-                      Quote No.
-                    </th>
-
-                    <th>
-                      Client
-                    </th>
-
-                    <th>
-                      Project
-                    </th>
-
-                    <th>
-                      Date
-                    </th>
-
-                    <th>
-                      Total
-                    </th>
-
-                    <th>
-                      Status
-                    </th>
-
-                    <th>
-                      Actions
-                    </th>
+                    <th>Quotation</th>
+                    <th>Client</th>
+                    <th>Project</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
 
@@ -848,17 +925,16 @@ function Quotations() {
                     <tr>
                       <td
                         colSpan="7"
-                        className="no-data"
+                        className="table-message"
                       >
                         Loading quotations...
                       </td>
                     </tr>
-                  ) : filteredQuotations.length ===
-                    0 ? (
+                  ) : filteredQuotations.length === 0 ? (
                     <tr>
                       <td
                         colSpan="7"
-                        className="no-data"
+                        className="table-message"
                       >
                         No quotations found.
                       </td>
@@ -867,51 +943,43 @@ function Quotations() {
                     filteredQuotations.map(
                       (quotation) => (
                         <tr
-                          key={
-                            quotation._id
-                          }
+                          key={quotation._id}
                         >
 
                           <td>
-                            <strong>
-                              {
-                                quotation.quotation_number
-                              }
+                            <strong className="quotation-number">
+                              {quotation.quotation_number ||
+                                "-"}
                             </strong>
                           </td>
 
                           <td>
-                            <div className="client-cell">
-                              <strong>
-                                {
-                                  quotation.client_name
-                                }
-                              </strong>
+                            <strong>
+                              {quotation.client_name ||
+                                "-"}
+                            </strong>
 
-                              <small>
-                                {
-                                  quotation.client_email
-                                }
-                              </small>
-                            </div>
+                            <small>
+                              {quotation.company_name ||
+                                ""}
+                            </small>
                           </td>
 
                           <td>
-                            {
-                              quotation.project_name
-                            }
-                          </td>
-
-                          <td>
-                            {formatDate(
-                              quotation.quotation_date
-                            )}
+                            {quotation.project_name ||
+                              "-"}
                           </td>
 
                           <td>
                             <strong className="amount">
-                              {formatCurrency(
-                                quotation.grand_total
+                              ₹
+                              {Number(
+                                quotation.total || 0
+                              ).toLocaleString(
+                                "en-IN",
+                                {
+                                  minimumFractionDigits: 2,
+                                }
                               )}
                             </strong>
                           </td>
@@ -919,11 +987,12 @@ function Quotations() {
                           <td>
 
                             <select
-                              className={`quote-status ${getStatusClass(
+                              className={`quotation-status ${getStatusClass(
                                 quotation.status
                               )}`}
                               value={
-                                quotation.status
+                                quotation.status ||
+                                "Draft"
                               }
                               onChange={(e) =>
                                 handleStatusChange(
@@ -933,19 +1002,38 @@ function Quotations() {
                               }
                             >
 
-                              {STATUS_OPTIONS.map(
-                                (status) => (
-                                  <option
-                                    key={status}
-                                    value={status}
-                                  >
-                                    {status}
-                                  </option>
-                                )
-                              )}
+                              <option value="Draft">
+                                Draft
+                              </option>
+
+                              <option value="Sent">
+                                Sent
+                              </option>
+
+                              <option value="Viewed">
+                                Viewed
+                              </option>
+
+                              <option value="Accepted">
+                                Accepted
+                              </option>
+
+                              <option value="Rejected">
+                                Rejected
+                              </option>
+
+                              <option value="Expired">
+                                Expired
+                              </option>
 
                             </select>
 
+                          </td>
+
+                          <td>
+                            {formatDate(
+                              quotation.createdAt
+                            )}
                           </td>
 
                           <td>
@@ -975,10 +1063,32 @@ function Quotations() {
                               </button>
 
                               <button
+                                className="action-pdf"
+                                onClick={() =>
+                                  handleDownloadPDF(
+                                    quotation
+                                  )
+                                }
+                              >
+                                PDF
+                              </button>
+
+                              <button
+                                className="action-print"
+                                onClick={() =>
+                                  handlePrint(
+                                    quotation
+                                  )
+                                }
+                              >
+                                Print
+                              </button>
+
+                              <button
                                 className="action-delete"
                                 onClick={() =>
                                   handleDelete(
-                                    quotation._id
+                                    quotation
                                   )
                                 }
                               >
@@ -1001,15 +1111,25 @@ function Quotations() {
             </div>
 
           </div>
+
         </div>
       </div>
 
-      {/* =========================================
+      {/* =====================================================
           CREATE / EDIT MODAL
-      ========================================== */}
+      ===================================================== */}
 
       {showForm && (
-        <div className="quotation-modal-overlay">
+        <div
+          className="quotation-modal-overlay"
+          onMouseDown={(e) => {
+            if (
+              e.target === e.currentTarget
+            ) {
+              setShowForm(false);
+            }
+          }}
+        >
 
           <div className="quotation-form-modal">
 
@@ -1017,18 +1137,21 @@ function Quotations() {
 
               <div>
                 <span>
-                  GKT SOFTWARE SOLUTION
+                  {editingId
+                    ? "EDIT QUOTATION"
+                    : "NEW QUOTATION"}
                 </span>
 
                 <h2>
                   {editingId
-                    ? "Edit Quotation"
+                    ? "Update Quotation"
                     : "Create Quotation"}
                 </h2>
               </div>
 
               <button
                 className="modal-close"
+                type="button"
                 onClick={() =>
                   setShowForm(false)
                 }
@@ -1038,347 +1161,207 @@ function Quotations() {
 
             </div>
 
-            <form
-              onSubmit={handleSubmit}
-              className="quotation-form"
-            >
+            <form onSubmit={handleSave}>
 
               {/* CLIENT */}
 
               <div className="form-section">
 
-                <h3>
+                <div className="section-title">
                   Client Information
-                </h3>
+                </div>
 
                 <div className="form-grid">
 
                   <div className="form-group">
-
                     <label>
-                      Select Client
-                    </label>
-
-                    <select
-                      value={
-                        form.client_id
-                      }
-                      onChange={
-                        handleClientChange
-                      }
-                    >
-
-                      <option value="">
-                        Select existing client
-                      </option>
-
-                      {clients.map(
-                        (client) => (
-                          <option
-                            key={
-                              client._id
-                            }
-                            value={
-                              client._id
-                            }
-                          >
-                            {client.company ||
-                              client.name ||
-                              client.contact}
-                          </option>
-                        )
-                      )}
-
-                    </select>
-
-                  </div>
-
-                  <div className="form-group">
-
-                    <label>
-                      Client Name
+                      Client Name *
                     </label>
 
                     <input
                       name="client_name"
-                      value={
-                        form.client_name
-                      }
-                      onChange={
-                        handleChange
-                      }
+                      value={form.client_name}
+                      onChange={handleChange}
                       placeholder="Client name"
                     />
-
                   </div>
 
                   <div className="form-group">
-
                     <label>
-                      Email
+                      Company Name
+                    </label>
+
+                    <input
+                      name="company_name"
+                      value={form.company_name}
+                      onChange={handleChange}
+                      placeholder="Company name"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>
+                      Email *
                     </label>
 
                     <input
                       type="email"
                       name="client_email"
-                      value={
-                        form.client_email
-                      }
-                      onChange={
-                        handleChange
-                      }
-                      placeholder="client@email.com"
+                      value={form.client_email}
+                      onChange={handleChange}
+                      placeholder="client@example.com"
                     />
-
                   </div>
 
                   <div className="form-group">
-
                     <label>
                       Phone
                     </label>
 
                     <input
                       name="client_phone"
-                      value={
-                        form.client_phone
-                      }
-                      onChange={
-                        handleChange
-                      }
-                      placeholder="+91..."
+                      value={form.client_phone}
+                      onChange={handleChange}
+                      placeholder="+91 XXXXX XXXXX"
                     />
-
                   </div>
 
-                </div>
-
-              </div>
-
-              {/* PROJECT */}
-
-              <div className="form-section">
-
-                <h3>
-                  Project Information
-                </h3>
-
-                <div className="form-grid">
-
                   <div className="form-group full">
-
                     <label>
-                      Project Name
+                      Project Name *
                     </label>
 
                     <input
                       name="project_name"
-                      value={
-                        form.project_name
-                      }
-                      onChange={
-                        handleChange
-                      }
-                      placeholder="Enter project name"
+                      value={form.project_name}
+                      onChange={handleChange}
+                      placeholder="Project name"
                     />
-
-                  </div>
-
-                  <div className="form-group">
-
-                    <label>
-                      Quotation Date
-                    </label>
-
-                    <input
-                      type="date"
-                      name="quotation_date"
-                      value={
-                        form.quotation_date
-                      }
-                      onChange={
-                        handleChange
-                      }
-                    />
-
-                  </div>
-
-                  <div className="form-group">
-
-                    <label>
-                      Valid Until
-                    </label>
-
-                    <input
-                      type="date"
-                      name="valid_until"
-                      value={
-                        form.valid_until
-                      }
-                      onChange={
-                        handleChange
-                      }
-                    />
-
                   </div>
 
                 </div>
 
               </div>
 
-              {/* SERVICES */}
+              {/* BILLING */}
 
               <div className="form-section">
 
                 <div className="section-heading-row">
 
-                  <h3>
-                    Services
-                  </h3>
+                  <div className="section-title">
+                    Itemized Billing
+                  </div>
 
                   <button
                     type="button"
                     className="add-item-btn"
                     onClick={addItem}
                   >
-                    + Add Service
+                    + Add Item
                   </button>
 
                 </div>
 
-                <div className="items-container">
+                <div className="items-header">
 
-                  {form.items.map(
-                    (item, index) => (
+                  <span>
+                    Description
+                  </span>
+
+                  <span>
+                    Qty
+                  </span>
+
+                  <span>
+                    Rate
+                  </span>
+
+                  <span>
+                    Amount
+                  </span>
+
+                  <span>
+                  </span>
+
+                </div>
+
+                {form.items.map(
+                  (item, index) => {
+
+                    const amount =
+                      Number(
+                        item.quantity
+                      ) *
+                      Number(
+                        item.rate
+                      );
+
+                    return (
                       <div
-                        className="quotation-item"
+                        className="item-row"
                         key={index}
                       >
 
-                        <div className="item-number">
-                          {index + 1}
-                        </div>
+                        <input
+                          value={
+                            item.description
+                          }
+                          onChange={(e) =>
+                            handleItemChange(
+                              index,
+                              "description",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Service / Description"
+                        />
 
-                        <div className="item-fields">
+                        <input
+                          type="number"
+                          min="1"
+                          value={
+                            item.quantity
+                          }
+                          onChange={(e) =>
+                            handleItemChange(
+                              index,
+                              "quantity",
+                              e.target.value
+                            )
+                          }
+                        />
 
-                          <div className="form-group">
+                        <input
+                          type="number"
+                          min="0"
+                          value={
+                            item.rate
+                          }
+                          onChange={(e) =>
+                            handleItemChange(
+                              index,
+                              "rate",
+                              e.target.value
+                            )
+                          }
+                        />
 
-                            <label>
-                              Service
-                            </label>
-
-                            <input
-                              value={
-                                item.service
-                              }
-                              onChange={(e) =>
-                                handleItemChange(
-                                  index,
-                                  "service",
-                                  e.target.value
-                                )
-                              }
-                              placeholder="Website Development"
-                            />
-
-                          </div>
-
-                          <div className="form-group">
-
-                            <label>
-                              Description
-                            </label>
-
-                            <input
-                              value={
-                                item.description
-                              }
-                              onChange={(e) =>
-                                handleItemChange(
-                                  index,
-                                  "description",
-                                  e.target.value
-                                )
-                              }
-                              placeholder="Service description"
-                            />
-
-                          </div>
-
-                          <div className="form-group small">
-
-                            <label>
-                              Qty
-                            </label>
-
-                            <input
-                              type="number"
-                              min="1"
-                              value={
-                                item.quantity
-                              }
-                              onChange={(e) =>
-                                handleItemChange(
-                                  index,
-                                  "quantity",
-                                  e.target.value
-                                )
-                              }
-                            />
-
-                          </div>
-
-                          <div className="form-group">
-
-                            <label>
-                              Unit Price
-                            </label>
-
-                            <input
-                              type="number"
-                              min="0"
-                              value={
-                                item.unit_price
-                              }
-                              onChange={(e) =>
-                                handleItemChange(
-                                  index,
-                                  "unit_price",
-                                  e.target.value
-                                )
-                              }
-                            />
-
-                          </div>
-
-                          <div className="item-total">
-
-                            <span>
-                              Total
-                            </span>
-
-                            <strong>
-                              {formatCurrency(
-                                Number(
-                                  item.quantity
-                                ) *
-                                  Number(
-                                    item.unit_price
-                                  )
-                              )}
-                            </strong>
-
-                          </div>
-
+                        <div className="item-amount">
+                          ₹
+                          {amount.toLocaleString(
+                            "en-IN",
+                            {
+                              minimumFractionDigits: 2,
+                            }
+                          )}
                         </div>
 
                         <button
                           type="button"
                           className="remove-item-btn"
                           onClick={() =>
-                            removeItem(
-                              index
-                            )
+                            removeItem(index)
                           }
                           disabled={
                             form.items.length ===
@@ -1389,43 +1372,35 @@ function Quotations() {
                         </button>
 
                       </div>
-                    )
-                  )}
-
-                </div>
+                    );
+                  }
+                )}
 
               </div>
 
               {/* TOTALS */}
 
-              <div className="form-section totals-section">
+              <div className="quotation-financial-section">
 
-                <div className="totals-grid">
+                <div className="financial-left">
 
                   <div className="form-group">
-
                     <label>
-                      Discount (₹)
+                      Discount
                     </label>
 
                     <input
                       type="number"
                       min="0"
                       name="discount"
-                      value={
-                        form.discount
-                      }
-                      onChange={
-                        handleChange
-                      }
+                      value={form.discount}
+                      onChange={handleChange}
                     />
-
                   </div>
 
                   <div className="form-group">
-
                     <label>
-                      GST (%)
+                      GST %
                     </label>
 
                     <input
@@ -1435,178 +1410,145 @@ function Quotations() {
                       value={
                         form.gst_percentage
                       }
-                      onChange={
-                        handleChange
-                      }
+                      onChange={handleChange}
                     />
-
                   </div>
 
-                  <div className="calculation-box">
+                  <div className="form-group">
+                    <label>
+                      Validity Days
+                    </label>
 
-                    <div>
-                      <span>
-                        Subtotal
-                      </span>
-
-                      <strong>
-                        {formatCurrency(
-                          subtotal
-                        )}
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span>
-                        Discount
-                      </span>
-
-                      <strong>
-                        -{" "}
-                        {formatCurrency(
-                          discount
-                        )}
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span>
-                        Taxable Amount
-                      </span>
-
-                      <strong>
-                        {formatCurrency(
-                          taxableAmount
-                        )}
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span>
-                        GST
-                      </span>
-
-                      <strong>
-                        {formatCurrency(
-                          gstAmount
-                        )}
-                      </strong>
-                    </div>
-
-                    <div className="grand-total">
-
-                      <span>
-                        Grand Total
-                      </span>
-
-                      <strong>
-                        {formatCurrency(
-                          grandTotal
-                        )}
-                      </strong>
-
-                    </div>
-
+                    <input
+                      type="number"
+                      min="1"
+                      name="validity_days"
+                      value={
+                        form.validity_days
+                      }
+                      onChange={handleChange}
+                    />
                   </div>
 
                 </div>
 
+                <div className="totals-box">
+
+                  <div>
+                    <span>
+                      Subtotal
+                    </span>
+
+                    <strong>
+                      ₹
+                      {calculatedTotals.subtotal.toLocaleString(
+                        "en-IN",
+                        {
+                          minimumFractionDigits: 2,
+                        }
+                      )}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>
+                      Discount
+                    </span>
+
+                    <strong>
+                      - ₹
+                      {calculatedTotals.discount.toLocaleString(
+                        "en-IN",
+                        {
+                          minimumFractionDigits: 2,
+                        }
+                      )}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>
+                      Taxable Amount
+                    </span>
+
+                    <strong>
+                      ₹
+                      {calculatedTotals.taxableAmount.toLocaleString(
+                        "en-IN",
+                        {
+                          minimumFractionDigits: 2,
+                        }
+                      )}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>
+                      GST (
+                      {
+                        calculatedTotals.gstPercentage
+                      }
+                      %)
+                    </span>
+
+                    <strong>
+                      ₹
+                      {calculatedTotals.gstAmount.toLocaleString(
+                        "en-IN",
+                        {
+                          minimumFractionDigits: 2,
+                        }
+                      )}
+                    </strong>
+                  </div>
+
+                  <div className="grand-total">
+
+                    <span>
+                      TOTAL
+                    </span>
+
+                    <strong>
+                      ₹
+                      {calculatedTotals.total.toLocaleString(
+                        "en-IN",
+                        {
+                          minimumFractionDigits: 2,
+                        }
+                      )}
+                    </strong>
+
+                  </div>
+
+                </div>
+
               </div>
 
-              {/* NOTES */}
+              {/* TERMS */}
 
               <div className="form-section">
 
-                <h3>
-                  Notes & Terms
-                </h3>
-
-                <div className="form-group">
-
-                  <label>
-                    Notes
-                  </label>
-
-                  <textarea
-                    name="notes"
-                    rows="3"
-                    value={
-                      form.notes
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="Additional notes..."
-                  />
-
+                <div className="section-title">
+                  Terms & Conditions
                 </div>
 
-                <div className="form-group">
-
-                  <label>
-                    Terms & Conditions
-                  </label>
-
-                  <textarea
-                    name="terms"
-                    rows="4"
-                    value={
-                      form.terms
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="Payment terms..."
-                  />
-
-                </div>
+                <textarea
+                  name="terms"
+                  rows="6"
+                  value={form.terms}
+                  onChange={handleChange}
+                  placeholder="Enter terms and conditions..."
+                />
 
               </div>
 
-              {/* STATUS */}
-
-              <div className="form-section">
-
-                <div className="form-group">
-
-                  <label>
-                    Status
-                  </label>
-
-                  <select
-                    name="status"
-                    value={
-                      form.status
-                    }
-                    onChange={
-                      handleChange
-                    }
-                  >
-
-                    {STATUS_OPTIONS.map(
-                      (status) => (
-                        <option
-                          key={status}
-                          value={status}
-                        >
-                          {status}
-                        </option>
-                      )
-                    )}
-
-                  </select>
-
-                </div>
-
-              </div>
-
-              {/* ACTIONS */}
+              {/* BUTTONS */}
 
               <div className="quotation-form-actions">
 
                 <button
                   type="button"
-                  className="quotation-cancel-btn"
+                  className="form-cancel-btn"
                   onClick={() =>
                     setShowForm(false)
                   }
@@ -1616,7 +1558,7 @@ function Quotations() {
 
                 <button
                   type="submit"
-                  className="quotation-save-btn"
+                  className="form-save-btn"
                   disabled={saving}
                 >
                   {saving
@@ -1635,275 +1577,393 @@ function Quotations() {
         </div>
       )}
 
-      {/* =========================================
-          VIEW QUOTATION
-      ========================================== */}
+      {/* =====================================================
+          PREVIEW MODAL
+      ===================================================== */}
 
-      {showView &&
+      {showPreview &&
         selectedQuotation && (
-          <div className="quotation-modal-overlay">
+          <div
+            className="quotation-modal-overlay"
+            onMouseDown={(e) => {
+              if (
+                e.target === e.currentTarget
+              ) {
+                setShowPreview(false);
+              }
+            }}
+          >
 
             <div className="quotation-preview-modal">
 
-              <div className="quotation-preview-header">
+              <div className="preview-toolbar">
 
                 <div>
                   <span>
-                    GKT SOFTWARE SOLUTION
+                    QUOTATION PREVIEW
                   </span>
 
                   <h2>
-                    QUOTATION
+                    {
+                      selectedQuotation.quotation_number
+                    }
                   </h2>
                 </div>
 
-                <button
-                  className="modal-close"
-                  onClick={() =>
-                    setShowView(false)
-                  }
-                >
-                  ×
-                </button>
+                <div className="preview-actions">
+
+                  <button
+                    onClick={() =>
+                      handleDownloadPDF(
+                        selectedQuotation
+                      )
+                    }
+                    className="preview-pdf-btn"
+                  >
+                    Download PDF
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      handlePrint(
+                        selectedQuotation
+                      )
+                    }
+                    className="preview-print-btn"
+                  >
+                    Print
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      setShowPreview(false)
+                    }
+                    className="preview-close-btn"
+                  >
+                    Close
+                  </button>
+
+                </div>
 
               </div>
 
-              <div className="quotation-preview">
+              <div className="quotation-paper">
 
-                <div className="preview-top">
+                <div className="paper-header">
+
+                  <h1>
+                    GKT SOFTWARE SOLUTION
+                  </h1>
+
+                  <p>
+                    Software Development • Web
+                    Development • AI Solutions
+                  </p>
+
+                  <p>
+                    Avadi, Chennai - 600054,
+                    Tamil Nadu
+                  </p>
+
+                  <p>
+                    +91 8778341227 |
+                    gktsoftwaresolution@gmail.com
+                  </p>
+
+                </div>
+
+                <div className="paper-title">
+                  QUOTATION
+                </div>
+
+                <div className="paper-info">
 
                   <div>
                     <strong>
-                      Quotation No.
+                      Quotation No
                     </strong>
 
-                    <p>
+                    <span>
                       {
                         selectedQuotation.quotation_number
                       }
-                    </p>
+                    </span>
                   </div>
 
                   <div>
                     <strong>
-                      Date
+                      Project
                     </strong>
 
-                    <p>
-                      {formatDate(
-                        selectedQuotation.quotation_date
-                      )}
-                    </p>
+                    <span>
+                      {
+                        selectedQuotation.project_name
+                      }
+                    </span>
                   </div>
 
                   <div>
                     <strong>
-                      Valid Until
+                      Client
                     </strong>
 
-                    <p>
-                      {formatDate(
-                        selectedQuotation.valid_until
-                      )}
-                    </p>
+                    <span>
+                      {
+                        selectedQuotation.client_name
+                      }
+                    </span>
+                  </div>
+
+                  <div>
+                    <strong>
+                      Company
+                    </strong>
+
+                    <span>
+                      {
+                        selectedQuotation.company_name ||
+                        "-"
+                      }
+                    </span>
+                  </div>
+
+                  <div>
+                    <strong>
+                      Email
+                    </strong>
+
+                    <span>
+                      {
+                        selectedQuotation.client_email
+                      }
+                    </span>
+                  </div>
+
+                  <div>
+                    <strong>
+                      Phone
+                    </strong>
+
+                    <span>
+                      {
+                        selectedQuotation.client_phone ||
+                        "-"
+                      }
+                    </span>
                   </div>
 
                 </div>
 
-                <div className="preview-client">
+                <h3>
+                  PROJECT BILLING
+                </h3>
+
+                <table className="preview-items-table">
+
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>
+                        Description
+                      </th>
+                      <th>
+                        Qty
+                      </th>
+                      <th>
+                        Rate
+                      </th>
+                      <th>
+                        Amount
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+
+                    {selectedQuotation.items?.map(
+                      (item, index) => (
+                        <tr
+                          key={index}
+                        >
+
+                          <td>
+                            {index + 1}
+                          </td>
+
+                          <td>
+                            {
+                              item.description
+                            }
+                          </td>
+
+                          <td>
+                            {
+                              item.quantity
+                            }
+                          </td>
+
+                          <td>
+                            ₹
+                            {Number(
+                              item.rate || 0
+                            ).toLocaleString(
+                              "en-IN",
+                              {
+                                minimumFractionDigits: 2,
+                              }
+                            )}
+                          </td>
+
+                          <td>
+                            ₹
+                            {Number(
+                              item.amount ||
+                                Number(
+                                  item.quantity ||
+                                    0
+                                ) *
+                                  Number(
+                                    item.rate ||
+                                      0
+                                  )
+                            ).toLocaleString(
+                              "en-IN",
+                              {
+                                minimumFractionDigits: 2,
+                              }
+                            )}
+                          </td>
+
+                        </tr>
+                      )
+                    )}
+
+                  </tbody>
+
+                </table>
+
+                <div className="preview-total-box">
+
+                  <div>
+                    <span>
+                      Subtotal
+                    </span>
+
+                    <strong>
+                      ₹
+                      {Number(
+                        selectedQuotation.subtotal ||
+                          0
+                      ).toLocaleString(
+                        "en-IN",
+                        {
+                          minimumFractionDigits: 2,
+                        }
+                      )}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>
+                      Discount
+                    </span>
+
+                    <strong>
+                      - ₹
+                      {Number(
+                        selectedQuotation.discount ||
+                          0
+                      ).toLocaleString(
+                        "en-IN",
+                        {
+                          minimumFractionDigits: 2,
+                        }
+                      )}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>
+                      Taxable Amount
+                    </span>
+
+                    <strong>
+                      ₹
+                      {Number(
+                        selectedQuotation.taxable_amount ||
+                          0
+                      ).toLocaleString(
+                        "en-IN",
+                        {
+                          minimumFractionDigits: 2,
+                        }
+                      )}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>
+                      GST (
+                      {
+                        selectedQuotation.gst_percentage ||
+                        0
+                      }
+                      %)
+                    </span>
+
+                    <strong>
+                      ₹
+                      {Number(
+                        selectedQuotation.gst_amount ||
+                          0
+                      ).toLocaleString(
+                        "en-IN",
+                        {
+                          minimumFractionDigits: 2,
+                        }
+                      )}
+                    </strong>
+                  </div>
+
+                  <div className="preview-grand-total">
+
+                    <span>
+                      TOTAL
+                    </span>
+
+                    <strong>
+                      ₹
+                      {Number(
+                        selectedQuotation.total ||
+                          0
+                      ).toLocaleString(
+                        "en-IN",
+                        {
+                          minimumFractionDigits: 2,
+                        }
+                      )}
+                    </strong>
+
+                  </div>
+
+                </div>
+
+                <div className="preview-terms">
 
                   <h3>
-                    Bill To
+                    TERMS & CONDITIONS
                   </h3>
 
-                  <strong>
-                    {
-                      selectedQuotation.client_name
-                    }
-                  </strong>
-
-                  <span>
-                    {
-                      selectedQuotation.client_email
-                    }
-                  </span>
-
-                  <span>
-                    {
-                      selectedQuotation.client_phone
-                    }
-                  </span>
-
-                  <span>
-                    Project:{" "}
-                    {
-                      selectedQuotation.project_name
-                    }
-                  </span>
+                  <p>
+                    {selectedQuotation.terms ||
+                      "No terms specified."}
+                  </p>
 
                 </div>
 
-                <div className="preview-items">
-
-                  <table>
-
-                    <thead>
-                      <tr>
-                        <th>
-                          Service
-                        </th>
-
-                        <th>
-                          Description
-                        </th>
-
-                        <th>
-                          Qty
-                        </th>
-
-                        <th>
-                          Price
-                        </th>
-
-                        <th>
-                          Total
-                        </th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-
-                      {selectedQuotation.items?.map(
-                        (item, index) => (
-                          <tr key={index}>
-
-                            <td>
-                              {
-                                item.service
-                              }
-                            </td>
-
-                            <td>
-                              {
-                                item.description
-                              }
-                            </td>
-
-                            <td>
-                              {
-                                item.quantity
-                              }
-                            </td>
-
-                            <td>
-                              {formatCurrency(
-                                item.unit_price
-                              )}
-                            </td>
-
-                            <td>
-                              {formatCurrency(
-                                item.total
-                              )}
-                            </td>
-
-                          </tr>
-                        )
-                      )}
-
-                    </tbody>
-
-                  </table>
-
-                </div>
-
-                <div className="preview-bottom">
-
-                  <div className="preview-notes">
-
-                    <h4>
-                      Notes
-                    </h4>
-
-                    <p>
-                      {
-                        selectedQuotation.notes ||
-                        "No additional notes."
-                      }
-                    </p>
-
-                    <h4>
-                      Terms
-                    </h4>
-
-                    <p>
-                      {
-                        selectedQuotation.terms ||
-                        "No terms specified."
-                      }
-                    </p>
-
-                  </div>
-
-                  <div className="preview-total-box">
-
-                    <div>
-                      <span>
-                        Subtotal
-                      </span>
-
-                      <strong>
-                        {formatCurrency(
-                          selectedQuotation.subtotal
-                        )}
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span>
-                        Discount
-                      </span>
-
-                      <strong>
-                        -{" "}
-                        {formatCurrency(
-                          selectedQuotation.discount
-                        )}
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span>
-                        GST (
-                        {
-                          selectedQuotation.gst_percentage
-                        }
-                        %)
-                      </span>
-
-                      <strong>
-                        {formatCurrency(
-                          selectedQuotation.gst_amount
-                        )}
-                      </strong>
-                    </div>
-
-                    <div className="preview-grand-total">
-
-                      <span>
-                        Grand Total
-                      </span>
-
-                      <strong>
-                        {formatCurrency(
-                          selectedQuotation.grand_total
-                        )}
-                      </strong>
-
-                    </div>
-
-                  </div>
-
+                <div className="paper-footer">
+                  Thank you for choosing GKT
+                  Software Solution.
                 </div>
 
               </div>
@@ -1917,66 +1977,46 @@ function Quotations() {
   );
 }
 
-
 // =========================================================
 // HELPERS
 // =========================================================
 
-function formatDate(value) {
-  if (!value) {
+function formatDate(date) {
+  if (!date) {
     return "-";
   }
 
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
+  try {
+    return new Date(date).toLocaleDateString(
+      "en-IN",
+      {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }
+    );
+  } catch {
     return "-";
   }
-
-  return date.toLocaleDateString(
-    "en-IN",
-    {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }
-  );
 }
-
-
-function formatDateForInput(value) {
-  if (!value) {
-    return "";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  const year =
-    date.getFullYear();
-
-  const month = String(
-    date.getMonth() + 1
-  ).padStart(2, "0");
-
-  const day = String(
-    date.getDate()
-  ).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-}
-
 
 function getStatusClass(status) {
-  return (
-    status
-      ?.toLowerCase()
-      .replace(/\s+/g, "-") || "draft"
-  );
+  if (!status) {
+    return "draft";
+  }
+
+  return status
+    .toLowerCase()
+    .replace(/\s+/g, "-");
 }
 
+function escapeHTML(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
 export default Quotations;

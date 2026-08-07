@@ -1,1 +1,0 @@
-mongodb+srv://gktsoftwaresolution_db_user:gktsoftwareteam%402002@gkt.uyanfak.mongodb.net/
