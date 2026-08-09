@@ -1,4 +1,5 @@
 import React, {
+    useCallback,
     useEffect,
     useState,
 } from "react";
@@ -8,85 +9,59 @@ import Swal from "sweetalert2";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 
-import api from "../api";
+import { supabase } from "../lib/supabase";
 
 import "../css/clients.css";
 
 function Clients() {
     const [clients, setClients] = useState([]);
     const [search, setSearch] = useState("");
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] =
+        useState(true);
 
-    // =====================================================
-    // FETCH CLIENTS
-    // =====================================================
+    const fetchClients = useCallback(
+        async () => {
+            try {
+                setLoading(true);
 
-    const fetchClients = async () => {
-        try {
-            setLoading(true);
+                const {
+                    data,
+                    error,
+                } = await supabase
+                    .from("clients")
+                    .select("*")
+                    .order("created_at", {
+                        ascending: false,
+                    });
 
-            const response =
-                await api.get("/clients");
+                if (error) {
+                    throw error;
+                }
 
-            console.log(
-                "CLIENTS RESPONSE:",
-                response.data
-            );
-
-            setClients(
-                Array.isArray(response.data)
-                    ? response.data
-                    : []
-            );
-        } catch (error) {
-            console.error(
-                "FETCH CLIENTS ERROR:",
-                error.response?.data ||
-                    error.message
-            );
-
-            if (
-                error.response?.status === 401
-            ) {
-                Swal.fire({
-                    icon: "warning",
-                    title: "Session expired",
-                    text: "Please login again.",
-                });
-
-                localStorage.removeItem(
-                    "token"
+                setClients(data || []);
+            } catch (error) {
+                console.error(
+                    "FETCH CLIENTS ERROR:",
+                    error
                 );
 
-                window.location.href =
-                    "/admin";
-
-                return;
+                Swal.fire({
+                    icon: "error",
+                    title: "Unable to load clients",
+                    text:
+                        error.message ||
+                        "Could not load clients.",
+                });
+            } finally {
+                setLoading(false);
             }
-
-            Swal.fire({
-                icon: "error",
-                title: "Unable to load clients",
-                text:
-                    error.response?.data?.detail ||
-                    "Could not connect to the backend.",
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // =====================================================
-    // LOAD
-    // =====================================================
+        },
+        []
+    );
 
     useEffect(() => {
         fetchClients();
-    }, []);
-
-    // =====================================================
-    // SEARCH
-    // =====================================================
+    }, [fetchClients]);
 
     const filteredClients =
         clients.filter((client) => {
@@ -99,21 +74,25 @@ function Clients() {
                 )
                     .toLowerCase()
                     .includes(searchText) ||
+
                 String(
                     client.contact || ""
                 )
                     .toLowerCase()
                     .includes(searchText) ||
+
                 String(
                     client.email || ""
                 )
                     .toLowerCase()
                     .includes(searchText) ||
+
                 String(
                     client.phone || ""
                 )
                     .toLowerCase()
                     .includes(searchText) ||
+
                 String(
                     client.project || ""
                 )
@@ -121,10 +100,6 @@ function Clients() {
                     .includes(searchText)
             );
         });
-
-    // =====================================================
-    // VIEW
-    // =====================================================
 
     const handleView = (client) => {
         Swal.fire({
@@ -134,6 +109,7 @@ function Clients() {
 
             html: `
                 <div style="text-align:left">
+
                     <p>
                         <strong>Contact:</strong>
                         ${client.contact || "-"}
@@ -158,6 +134,7 @@ function Clients() {
                         <strong>Status:</strong>
                         ${client.status || "Active"}
                     </p>
+
                 </div>
             `,
 
@@ -165,18 +142,15 @@ function Clients() {
         });
     };
 
-    // =====================================================
-    // DELETE
-    // =====================================================
-
     const handleDelete = async (client) => {
         const result =
             await Swal.fire({
                 title: "Delete client?",
-                text: `Delete ${
-                    client.company ||
-                    client.contact
-                }?`,
+                text:
+                    `Delete ${
+                        client.company ||
+                        client.contact
+                    }?`,
                 icon: "warning",
                 showCancelButton: true,
                 confirmButtonText:
@@ -190,15 +164,21 @@ function Clients() {
         }
 
         try {
-            await api.delete(
-                `/clients/${client._id}`
-            );
+            const {
+                error,
+            } = await supabase
+                .from("clients")
+                .delete()
+                .eq("id", client.id);
+
+            if (error) {
+                throw error;
+            }
 
             setClients((previous) =>
                 previous.filter(
                     (item) =>
-                        item._id !==
-                        client._id
+                        item.id !== client.id
                 )
             );
 
@@ -213,15 +193,14 @@ function Clients() {
         } catch (error) {
             console.error(
                 "DELETE CLIENT ERROR:",
-                error.response?.data ||
-                    error.message
+                error
             );
 
             Swal.fire({
                 icon: "error",
                 title: "Delete failed",
                 text:
-                    error.response?.data?.detail ||
+                    error.message ||
                     "Unable to delete client.",
             });
         }
@@ -242,16 +221,17 @@ function Clients() {
                         <div className="clients-header">
 
                             <div>
+
                                 <h2>
                                     👥 Clients
                                 </h2>
 
                                 <p>
-                                    Manage your
-                                    converted
-                                    customers and
-                                    active clients.
+                                    Manage your converted
+                                    customers and active
+                                    clients.
                                 </p>
+
                             </div>
 
                         </div>
@@ -273,30 +253,18 @@ function Clients() {
                             <table>
 
                                 <thead>
+
                                     <tr>
                                         <th>S.No</th>
-                                        <th>
-                                            Company
-                                        </th>
-                                        <th>
-                                            Contact
-                                        </th>
-                                        <th>
-                                            Email
-                                        </th>
-                                        <th>
-                                            Phone
-                                        </th>
-                                        <th>
-                                            Project
-                                        </th>
-                                        <th>
-                                            Status
-                                        </th>
-                                        <th>
-                                            Actions
-                                        </th>
+                                        <th>Company</th>
+                                        <th>Contact</th>
+                                        <th>Email</th>
+                                        <th>Phone</th>
+                                        <th>Project</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
                                     </tr>
+
                                 </thead>
 
                                 <tbody>
@@ -310,8 +278,7 @@ function Clients() {
                                                 Loading clients...
                                             </td>
                                         </tr>
-                                    ) : filteredClients.length ===
-                                      0 ? (
+                                    ) : filteredClients.length === 0 ? (
                                         <tr>
                                             <td
                                                 colSpan="8"
@@ -328,42 +295,51 @@ function Clients() {
                                             ) => (
                                                 <tr
                                                     key={
-                                                        client._id ||
-                                                        index
+                                                        client.id
                                                     }
                                                 >
 
                                                     <td>
-                                                        {index +
-                                                            1}
+                                                        {index + 1}
                                                     </td>
 
                                                     <td>
-                                                        {client.company ||
-                                                            "-"}
+                                                        {
+                                                            client.company ||
+                                                            "-"
+                                                        }
                                                     </td>
 
                                                     <td>
-                                                        {client.contact ||
-                                                            "-"}
+                                                        {
+                                                            client.contact ||
+                                                            "-"
+                                                        }
                                                     </td>
 
                                                     <td>
-                                                        {client.email ||
-                                                            "-"}
+                                                        {
+                                                            client.email ||
+                                                            "-"
+                                                        }
                                                     </td>
 
                                                     <td>
-                                                        {client.phone ||
-                                                            "-"}
+                                                        {
+                                                            client.phone ||
+                                                            "-"
+                                                        }
                                                     </td>
 
                                                     <td>
-                                                        {client.project ||
-                                                            "-"}
+                                                        {
+                                                            client.project ||
+                                                            "-"
+                                                        }
                                                     </td>
 
                                                     <td>
+
                                                         <span
                                                             className={`status ${String(
                                                                 client.status ||
@@ -375,12 +351,16 @@ function Clients() {
                                                                     "-"
                                                                 )}`}
                                                         >
-                                                            {client.status ||
-                                                                "Active"}
+                                                            {
+                                                                client.status ||
+                                                                "Active"
+                                                            }
                                                         </span>
+
                                                     </td>
 
                                                     <td>
+
                                                         <div className="action-buttons">
 
                                                             <button
@@ -406,6 +386,7 @@ function Clients() {
                                                             </button>
 
                                                         </div>
+
                                                     </td>
 
                                                 </tr>

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import Swal from "sweetalert2";
-import api from "../api";
+
+import { supabase } from "../lib/supabase";
 
 import "../css/contact.css";
 
@@ -13,18 +14,19 @@ const INITIAL_FORM = {
 };
 
 function Contact() {
-    const [form, setForm] = useState({
-        ...INITIAL_FORM,
-    });
+    const [form, setForm] =
+        useState({
+            ...INITIAL_FORM,
+        });
 
-    const [loading, setLoading] = useState(false);
-
-    // =====================================================
-    // HANDLE INPUT
-    // =====================================================
+    const [loading, setLoading] =
+        useState(false);
 
     const handleChange = (e) => {
-        const { name, value } = e.target;
+        const {
+            name,
+            value,
+        } = e.target;
 
         setForm((previous) => ({
             ...previous,
@@ -32,17 +34,15 @@ function Contact() {
         }));
     };
 
-    // =====================================================
-    // VALIDATE
-    // =====================================================
-
     const validateForm = () => {
         if (!form.name.trim()) {
             Swal.fire({
                 icon: "warning",
                 title: "Name Required",
-                text: "Please enter your name.",
+                text:
+                    "Please enter your name.",
             });
+
             return false;
         }
 
@@ -50,20 +50,28 @@ function Contact() {
             Swal.fire({
                 icon: "warning",
                 title: "Email Required",
-                text: "Please enter your email address.",
+                text:
+                    "Please enter your email address.",
             });
+
             return false;
         }
 
         const emailRegex =
             /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-        if (!emailRegex.test(form.email.trim())) {
+        if (
+            !emailRegex.test(
+                form.email.trim()
+            )
+        ) {
             Swal.fire({
                 icon: "warning",
                 title: "Invalid Email",
-                text: "Please enter a valid email address.",
+                text:
+                    "Please enter a valid email address.",
             });
+
             return false;
         }
 
@@ -71,8 +79,10 @@ function Contact() {
             Swal.fire({
                 icon: "warning",
                 title: "Phone Required",
-                text: "Please enter your phone number.",
+                text:
+                    "Please enter your phone number.",
             });
+
             return false;
         }
 
@@ -80,8 +90,10 @@ function Contact() {
             Swal.fire({
                 icon: "warning",
                 title: "Service Required",
-                text: "Please select a service.",
+                text:
+                    "Please select a service.",
             });
+
             return false;
         }
 
@@ -89,17 +101,15 @@ function Contact() {
             Swal.fire({
                 icon: "warning",
                 title: "Message Required",
-                text: "Please enter your message.",
+                text:
+                    "Please enter your message.",
             });
+
             return false;
         }
 
         return true;
     };
-
-    // =====================================================
-    // SUBMIT
-    // =====================================================
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -115,33 +125,33 @@ function Contact() {
         try {
             setLoading(true);
 
-            console.log(
-                "Sending enquiry to:",
-                "/api/enquiries"
-            );
-
-            const response = await api.post(
-                "/api/enquiries",
-                {
+            const {
+                error,
+            } = await supabase
+                .from("enquiries")
+                .insert({
                     name: form.name.trim(),
                     email: form.email.trim(),
                     phone: form.phone.trim(),
-                    service: form.service.trim(),
-                    message: form.message.trim(),
-                }
-            );
+                    service:
+                        form.service.trim(),
+                    message:
+                        form.message.trim(),
+                    status: "New",
+                });
 
-            console.log(
-                "ENQUIRY RESPONSE:",
-                response.data
-            );
+            if (error) {
+                throw error;
+            }
 
             await Swal.fire({
                 icon: "success",
-                title: "Enquiry Submitted!",
+                title:
+                    "Enquiry Submitted!",
                 text:
                     "Thank you for contacting us. Our team will get back to you soon.",
-                confirmButtonText: "OK",
+                confirmButtonText:
+                    "OK",
             });
 
             setForm({
@@ -153,68 +163,34 @@ function Contact() {
                 error
             );
 
-            console.error(
-                "SERVER RESPONSE:",
-                error.response?.data
-            );
-
             let errorMessage =
                 "Unable to submit your enquiry. Please try again.";
 
-            if (
-                Array.isArray(
-                    error.response?.data?.detail
-                )
-            ) {
+            if (error?.message) {
                 errorMessage =
-                    error.response.data.detail
-                        .map(
-                            (item) =>
-                                item?.msg ||
-                                String(item)
-                        )
-                        .join(", ");
-            } else if (
-                error.response?.data?.detail
-            ) {
-                errorMessage = String(
-                    error.response.data.detail
-                );
-            } else if (
-                error.code === "ERR_NETWORK"
-            ) {
-                errorMessage =
-                    "Unable to connect to the backend server. Please check the Render server and CORS configuration.";
-            } else if (
-                error.code === "ECONNABORTED"
-            ) {
-                errorMessage =
-                    "The backend server took too long to respond.";
+                    error.message;
             }
 
             Swal.fire({
                 icon: "error",
-                title: "Submission Failed",
+                title:
+                    "Submission Failed",
                 text: errorMessage,
-                confirmButtonText: "Try Again",
+                confirmButtonText:
+                    "Try Again",
             });
         } finally {
             setLoading(false);
         }
     };
 
-    // =====================================================
-    // RENDER
-    // =====================================================
-
     return (
         <section
             className="contact-section"
             id="contact"
         >
-            <div className="contact-container">
 
-                {/* LEFT */}
+            <div className="contact-container">
 
                 <div className="contact-info">
 
@@ -224,82 +200,107 @@ function Contact() {
 
                     <h2>
                         Let's Build Something
-                        <span> Great Together.</span>
+                        <span>
+                            {" "}
+                            Great Together.
+                        </span>
                     </h2>
 
                     <p className="contact-description">
-                        Have a project in mind or looking
-                        for the right technology solution?
-                        Send us your requirements and our
-                        team will get back to you.
+                        Have a project in mind or
+                        looking for the right
+                        technology solution? Send
+                        us your requirements and
+                        our team will get back to
+                        you.
                     </p>
 
                     <div className="contact-details">
 
                         <div className="contact-detail-item">
+
                             <div className="contact-detail-icon">
                                 ✉
                             </div>
 
                             <div>
-                                <span>Email</span>
+                                <span>
+                                    Email
+                                </span>
+
                                 <strong>
                                     info@gktsoftwaresolution.com
                                 </strong>
                             </div>
+
                         </div>
 
                         <div className="contact-detail-item">
+
                             <div className="contact-detail-icon">
                                 ☎
                             </div>
 
                             <div>
-                                <span>Phone</span>
+                                <span>
+                                    Phone
+                                </span>
+
                                 <strong>
                                     +91 XXXXX XXXXX
                                 </strong>
                             </div>
+
                         </div>
 
                         <div className="contact-detail-item">
+
                             <div className="contact-detail-icon">
                                 📍
                             </div>
 
                             <div>
-                                <span>Location</span>
+                                <span>
+                                    Location
+                                </span>
+
                                 <strong>
                                     Tamil Nadu, India
                                 </strong>
                             </div>
+
                         </div>
 
                     </div>
-                </div>
 
-                {/* FORM */}
+                </div>
 
                 <div className="contact-form-wrapper">
 
                     <form
                         className="contact-form"
-                        onSubmit={handleSubmit}
+                        onSubmit={
+                            handleSubmit
+                        }
                         noValidate
                     >
 
                         <div className="form-title">
+
                             <h3>
                                 Send Us an Enquiry
                             </h3>
 
                             <p>
-                                Tell us about your project
-                                and requirements.
+                                Tell us about your
+                                project and
+                                requirements.
                             </p>
+
                         </div>
 
                         <div className="form-group">
+
                             <label htmlFor="contact-name">
                                 Full Name
                             </label>
@@ -308,16 +309,24 @@ function Contact() {
                                 id="contact-name"
                                 type="text"
                                 name="name"
-                                value={form.name}
-                                onChange={handleChange}
+                                value={
+                                    form.name
+                                }
+                                onChange={
+                                    handleChange
+                                }
                                 placeholder="Enter your name"
                                 autoComplete="name"
-                                disabled={loading}
+                                disabled={
+                                    loading
+                                }
                                 required
                             />
+
                         </div>
 
                         <div className="form-group">
+
                             <label htmlFor="contact-email">
                                 Email Address
                             </label>
@@ -326,16 +335,24 @@ function Contact() {
                                 id="contact-email"
                                 type="email"
                                 name="email"
-                                value={form.email}
-                                onChange={handleChange}
+                                value={
+                                    form.email
+                                }
+                                onChange={
+                                    handleChange
+                                }
                                 placeholder="Enter your email"
                                 autoComplete="email"
-                                disabled={loading}
+                                disabled={
+                                    loading
+                                }
                                 required
                             />
+
                         </div>
 
                         <div className="form-group">
+
                             <label htmlFor="contact-phone">
                                 Phone Number
                             </label>
@@ -344,16 +361,24 @@ function Contact() {
                                 id="contact-phone"
                                 type="tel"
                                 name="phone"
-                                value={form.phone}
-                                onChange={handleChange}
+                                value={
+                                    form.phone
+                                }
+                                onChange={
+                                    handleChange
+                                }
                                 placeholder="Enter your phone number"
                                 autoComplete="tel"
-                                disabled={loading}
+                                disabled={
+                                    loading
+                                }
                                 required
                             />
+
                         </div>
 
                         <div className="form-group">
+
                             <label htmlFor="contact-service">
                                 Service
                             </label>
@@ -361,11 +386,18 @@ function Contact() {
                             <select
                                 id="contact-service"
                                 name="service"
-                                value={form.service}
-                                onChange={handleChange}
-                                disabled={loading}
+                                value={
+                                    form.service
+                                }
+                                onChange={
+                                    handleChange
+                                }
+                                disabled={
+                                    loading
+                                }
                                 required
                             >
+
                                 <option value="Software Development">
                                     Software Development
                                 </option>
@@ -397,10 +429,13 @@ function Contact() {
                                 <option value="Other">
                                     Other
                                 </option>
+
                             </select>
+
                         </div>
 
                         <div className="form-group">
+
                             <label htmlFor="contact-message">
                                 Message
                             </label>
@@ -408,45 +443,64 @@ function Contact() {
                             <textarea
                                 id="contact-message"
                                 name="message"
-                                value={form.message}
-                                onChange={handleChange}
+                                value={
+                                    form.message
+                                }
+                                onChange={
+                                    handleChange
+                                }
                                 placeholder="Tell us about your project..."
                                 rows="6"
-                                disabled={loading}
+                                disabled={
+                                    loading
+                                }
                                 required
                             />
+
                         </div>
 
                         <button
                             type="submit"
                             className="contact-submit-btn"
-                            disabled={loading}
+                            disabled={
+                                loading
+                            }
                         >
+
                             {loading ? (
                                 <>
                                     <span className="submit-spinner">
                                         ⟳
                                     </span>
+
                                     Sending...
                                 </>
                             ) : (
                                 <>
                                     Send Enquiry
-                                    <span>→</span>
+
+                                    <span>
+                                        →
+                                    </span>
                                 </>
                             )}
+
                         </button>
 
                         <p className="contact-form-note">
-                            Your information is safe with us.
-                            We will only use your details to
-                            respond to your enquiry.
+                            Your information is
+                            safe with us. We will
+                            only use your details
+                            to respond to your
+                            enquiry.
                         </p>
 
                     </form>
+
                 </div>
 
             </div>
+
         </section>
     );
 }

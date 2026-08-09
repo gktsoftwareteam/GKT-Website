@@ -1,98 +1,73 @@
-import React, { useEffect, useState } from "react";
+import React, {
+    useCallback,
+    useEffect,
+    useState,
+} from "react";
+
 import Swal from "sweetalert2";
 
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
-import api from "../api";
+
+import { supabase } from "../lib/supabase";
 
 import "../css/enquiries.css";
 
 function Enquiries() {
     const [enquiries, setEnquiries] = useState([]);
     const [search, setSearch] = useState("");
-    const [statusFilter, setStatusFilter] = useState("All");
-    const [loading, setLoading] = useState(true);
+    const [statusFilter, setStatusFilter] =
+        useState("All");
 
-    const [selectedEnquiry, setSelectedEnquiry] =
-        useState(null);
+    const [loading, setLoading] =
+        useState(true);
 
-    const [showViewModal, setShowViewModal] =
-        useState(false);
+    const fetchEnquiries = useCallback(
+        async () => {
+            try {
+                setLoading(true);
 
-    const [replyEnquiry, setReplyEnquiry] =
-        useState(null);
+                const {
+                    data,
+                    error,
+                } = await supabase
+                    .from("enquiries")
+                    .select("*")
+                    .order("created_at", {
+                        ascending: false,
+                    });
 
-    const [replyMessage, setReplyMessage] =
-        useState("");
+                if (error) {
+                    throw error;
+                }
 
-    const [sendingReply, setSendingReply] =
-        useState(false);
+                setEnquiries(data || []);
+            } catch (error) {
+                console.error(
+                    "FETCH ENQUIRIES ERROR:",
+                    error
+                );
 
-    // =====================================================
-    // FETCH ENQUIRIES
-    // =====================================================
-
-    const fetchEnquiries = async () => {
-        try {
-            setLoading(true);
-
-            const response = await api.get("/enquiries");
-
-            console.log(
-                "ENQUIRIES RESPONSE:",
-                response.data
-            );
-
-            setEnquiries(
-                Array.isArray(response.data)
-                    ? response.data
-                    : []
-            );
-        } catch (error) {
-            console.error(
-                "FETCH ENQUIRIES ERROR:",
-                error.response?.data || error.message
-            );
-
-            if (error.response?.status === 401) {
                 Swal.fire({
-                    icon: "warning",
-                    title: "Session expired",
-                    text: "Please login again.",
+                    icon: "error",
+                    title: "Unable to load enquiries",
+                    text:
+                        error.message ||
+                        "Could not load enquiries.",
                 });
-
-                localStorage.removeItem("token");
-
-                window.location.href = "/admin";
-                return;
+            } finally {
+                setLoading(false);
             }
-
-            Swal.fire({
-                icon: "error",
-                title: "Unable to load enquiries",
-                text:
-                    error.response?.data?.detail ||
-                    "Could not connect to the backend.",
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // =====================================================
-    // LOAD
-    // =====================================================
+        },
+        []
+    );
 
     useEffect(() => {
         fetchEnquiries();
-    }, []);
+    }, [fetchEnquiries]);
 
-    // =====================================================
-    // SEARCH + FILTER
-    // =====================================================
-
-    const filteredEnquiries = enquiries.filter(
-        (item) => {
+    const filteredEnquiries =
+        enquiries.filter((item) => {
             const searchText =
                 search.toLowerCase().trim();
 
@@ -118,119 +93,147 @@ function Enquiries() {
                 matchesSearch &&
                 matchesStatus
             );
-        }
-    );
-
-    // =====================================================
-    // VIEW
-    // =====================================================
+        });
 
     const handleView = (item) => {
-        setSelectedEnquiry(item);
-        setShowViewModal(true);
-    };
+        Swal.fire({
+            title:
+                item.name ||
+                "Enquiry Details",
 
-    // =====================================================
-    // REPLY
-    // =====================================================
+            html: `
+                <div style="text-align:left">
+                    <p>
+                        <strong>Name:</strong>
+                        ${item.name || "-"}
+                    </p>
+
+                    <p>
+                        <strong>Email:</strong>
+                        ${item.email || "-"}
+                    </p>
+
+                    <p>
+                        <strong>Phone:</strong>
+                        ${item.phone || "-"}
+                    </p>
+
+                    <p>
+                        <strong>Service:</strong>
+                        ${item.service || "-"}
+                    </p>
+
+                    <p>
+                        <strong>Status:</strong>
+                        ${item.status || "New"}
+                    </p>
+
+                    <p>
+                        <strong>Message:</strong>
+                        ${item.message || "-"}
+                    </p>
+                </div>
+            `,
+
+            confirmButtonText: "Close",
+        });
+    };
 
     const handleReply = (item) => {
-        setReplyEnquiry(item);
-        setReplyMessage("");
+        const subject = encodeURIComponent(
+            "Re: Your enquiry - GKT Software Solution"
+        );
+
+        const body = encodeURIComponent(
+            `Hello ${item.name || ""},\n\n\nRegards,\nGKT Software Solution`
+        );
+
+        window.location.href =
+            `mailto:${item.email}?subject=${subject}&body=${body}`;
     };
-
-    // =====================================================
-    // SEND REPLY
-    // =====================================================
-
-    const sendReply = async () => {
-        if (!replyMessage.trim()) {
-            Swal.fire({
-                icon: "warning",
-                title: "Message required",
-                text: "Please enter a reply message.",
-            });
-
-            return;
-        }
-
-        if (!replyEnquiry?._id) {
-            Swal.fire({
-                icon: "error",
-                title: "Invalid enquiry",
-                text: "Enquiry ID is missing.",
-            });
-
-            return;
-        }
-
-        try {
-            setSendingReply(true);
-
-            await api.post(
-                `/enquiries/${replyEnquiry._id}/reply`,
-                {
-                    message: replyMessage.trim(),
-                }
-            );
-
-            Swal.fire({
-                icon: "success",
-                title: "Reply sent",
-                text:
-                    "Your reply has been sent successfully.",
-                timer: 1500,
-                showConfirmButton: false,
-            });
-
-            setReplyEnquiry(null);
-            setReplyMessage("");
-        } catch (error) {
-            console.error(
-                "REPLY ERROR:",
-                error.response?.data ||
-                    error.message
-            );
-
-            Swal.fire({
-                icon: "error",
-                title: "Reply failed",
-                text:
-                    error.response?.data?.detail ||
-                    "Unable to send the reply.",
-            });
-        } finally {
-            setSendingReply(false);
-        }
-    };
-
-    // =====================================================
-    // CONVERT TO CLIENT
-    // =====================================================
 
     const handleConvert = async (item) => {
-        const result = await Swal.fire({
-            title: "Convert to client?",
-            text: `${item.name} will be added to Clients.`,
-            icon: "question",
-            showCancelButton: true,
-            confirmButtonText: "Convert",
-            cancelButtonText: "Cancel",
-        });
+        const result =
+            await Swal.fire({
+                title: "Convert to client?",
+                text:
+                    `${item.name} will be added to Clients.`,
+                icon: "question",
+                showCancelButton: true,
+                confirmButtonText: "Convert",
+                cancelButtonText: "Cancel",
+            });
 
         if (!result.isConfirmed) {
             return;
         }
 
         try {
-            await api.post(
-                `/enquiries/${item._id}/convert`
-            );
+            const {
+                data: existingClients,
+                error: existingError,
+            } = await supabase
+                .from("clients")
+                .select("id")
+                .eq("email", item.email)
+                .limit(1);
+
+            if (existingError) {
+                throw existingError;
+            }
+
+            if (
+                existingClients &&
+                existingClients.length > 0
+            ) {
+                Swal.fire({
+                    icon: "warning",
+                    title: "Already a client",
+                    text:
+                        "A client with this email already exists.",
+                });
+
+                return;
+            }
+
+            const {
+                error: clientError,
+            } = await supabase
+                .from("clients")
+                .insert({
+                    company: item.name,
+                    contact: item.name,
+                    email: item.email,
+                    phone: item.phone,
+                    project: item.service,
+                    status: "Active",
+                });
+
+            if (clientError) {
+                throw clientError;
+            }
+
+            const {
+                error: enquiryError,
+            } = await supabase
+                .from("enquiries")
+                .update({
+                    status: "Converted",
+                })
+                .eq("id", item.id);
+
+            if (enquiryError) {
+                throw enquiryError;
+            }
 
             setEnquiries((previous) =>
-                previous.filter(
-                    (enquiry) =>
-                        enquiry._id !== item._id
+                previous.map((enquiry) =>
+                    enquiry.id === item.id
+                        ? {
+                              ...enquiry,
+                              status: "Converted",
+                          }
+                        : enquiry
                 )
             );
 
@@ -245,47 +248,53 @@ function Enquiries() {
         } catch (error) {
             console.error(
                 "CONVERT ERROR:",
-                error.response?.data ||
-                    error.message
+                error
             );
 
             Swal.fire({
                 icon: "error",
                 title: "Conversion failed",
                 text:
-                    error.response?.data?.detail ||
+                    error.message ||
                     "Unable to convert enquiry.",
             });
         }
     };
 
-    // =====================================================
-    // DELETE
-    // =====================================================
-
     const handleDelete = async (item) => {
-        const result = await Swal.fire({
-            title: "Delete enquiry?",
-            text: `Delete enquiry from ${item.name}?`,
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonText: "Yes, delete",
-            cancelButtonText: "Cancel",
-        });
+        const result =
+            await Swal.fire({
+                title: "Delete enquiry?",
+                text:
+                    `Delete enquiry from ${item.name}?`,
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonText:
+                    "Yes, delete",
+                cancelButtonText:
+                    "Cancel",
+            });
 
         if (!result.isConfirmed) {
             return;
         }
 
         try {
-            await api.delete(
-                `/enquiries/${item._id}`
-            );
+            const {
+                error,
+            } = await supabase
+                .from("enquiries")
+                .delete()
+                .eq("id", item.id);
+
+            if (error) {
+                throw error;
+            }
 
             setEnquiries((previous) =>
                 previous.filter(
                     (enquiry) =>
-                        enquiry._id !== item._id
+                        enquiry.id !== item.id
                 )
             );
 
@@ -300,33 +309,29 @@ function Enquiries() {
         } catch (error) {
             console.error(
                 "DELETE ENQUIRY ERROR:",
-                error.response?.data ||
-                    error.message
+                error
             );
 
             Swal.fire({
                 icon: "error",
                 title: "Delete failed",
                 text:
-                    error.response?.data?.detail ||
+                    error.message ||
                     "Unable to delete enquiry.",
             });
         }
     };
 
-    // =====================================================
-    // UPDATE STATUS
-    // =====================================================
-
     const updateStatus = async (
         id,
         status
     ) => {
-        const oldEnquiries = [...enquiries];
+        const previousEnquiries =
+            enquiries;
 
         setEnquiries((previous) =>
             previous.map((item) =>
-                item._id === id
+                item.id === id
                     ? {
                           ...item,
                           status,
@@ -336,26 +341,33 @@ function Enquiries() {
         );
 
         try {
-            await api.put(
-                `/enquiries/${id}/status`,
-                {
+            const {
+                error,
+            } = await supabase
+                .from("enquiries")
+                .update({
                     status,
-                }
-            );
+                })
+                .eq("id", id);
+
+            if (error) {
+                throw error;
+            }
         } catch (error) {
             console.error(
                 "STATUS UPDATE ERROR:",
-                error.response?.data ||
-                    error.message
+                error
             );
 
-            setEnquiries(oldEnquiries);
+            setEnquiries(
+                previousEnquiries
+            );
 
             Swal.fire({
                 icon: "error",
                 title: "Status update failed",
                 text:
-                    error.response?.data?.detail ||
+                    error.message ||
                     "Unable to update status.",
             });
         }
@@ -366,22 +378,26 @@ function Enquiries() {
             <Sidebar />
 
             <div className="dashboard-main">
+
                 <Topbar />
 
                 <div className="dashboard-content">
+
                     <div className="enquiries-page">
 
                         <div className="page-title">
-                            <h2>📩 Enquiries</h2>
+
+                            <h2>
+                                📩 Enquiries
+                            </h2>
 
                             <p>
                                 Manage customer enquiries
                                 and convert leads into
                                 clients.
                             </p>
-                        </div>
 
-                        {/* TOOLBAR */}
+                        </div>
 
                         <div className="toolbar">
 
@@ -416,6 +432,10 @@ function Enquiries() {
                                     In Progress
                                 </option>
 
+                                <option value="Pending">
+                                    Pending
+                                </option>
+
                                 <option value="Completed">
                                     Completed
                                 </option>
@@ -427,11 +447,13 @@ function Enquiries() {
                                 <option value="Rejected">
                                     Rejected
                                 </option>
+
+                                <option value="Converted">
+                                    Converted
+                                </option>
                             </select>
 
                         </div>
-
-                        {/* TABLE */}
 
                         <div className="table-container">
 
@@ -460,8 +482,7 @@ function Enquiries() {
                                                 Loading enquiries...
                                             </td>
                                         </tr>
-                                    ) : filteredEnquiries.length ===
-                                      0 ? (
+                                    ) : filteredEnquiries.length === 0 ? (
                                         <tr>
                                             <td
                                                 colSpan="7"
@@ -478,37 +499,32 @@ function Enquiries() {
                                             ) => (
                                                 <tr
                                                     key={
-                                                        item._id ||
-                                                        index
+                                                        item.id
                                                     }
                                                 >
 
                                                     <td>
-                                                        {index +
-                                                            1}
+                                                        {index + 1}
                                                     </td>
 
                                                     <td>
-                                                        {item.name ||
-                                                            "-"}
+                                                        {item.name}
                                                     </td>
 
                                                     <td>
-                                                        {item.email ||
-                                                            "-"}
+                                                        {item.email}
                                                     </td>
 
                                                     <td>
-                                                        {item.phone ||
-                                                            "-"}
+                                                        {item.phone || "-"}
                                                     </td>
 
                                                     <td>
-                                                        {item.service ||
-                                                            "-"}
+                                                        {item.service}
                                                     </td>
 
                                                     <td>
+
                                                         <select
                                                             className="status-select"
                                                             value={
@@ -519,19 +535,22 @@ function Enquiries() {
                                                                 e
                                                             ) =>
                                                                 updateStatus(
-                                                                    item._id,
-                                                                    e
-                                                                        .target
-                                                                        .value
+                                                                    item.id,
+                                                                    e.target.value
                                                                 )
                                                             }
                                                         >
+
                                                             <option value="New">
                                                                 New
                                                             </option>
 
                                                             <option value="In Progress">
                                                                 In Progress
+                                                            </option>
+
+                                                            <option value="Pending">
+                                                                Pending
                                                             </option>
 
                                                             <option value="Completed">
@@ -545,10 +564,17 @@ function Enquiries() {
                                                             <option value="Rejected">
                                                                 Rejected
                                                             </option>
+
+                                                            <option value="Converted">
+                                                                Converted
+                                                            </option>
+
                                                         </select>
+
                                                     </td>
 
                                                     <td>
+
                                                         <div className="action-buttons">
 
                                                             <button
@@ -580,8 +606,15 @@ function Enquiries() {
                                                                         item
                                                                     )
                                                                 }
+                                                                disabled={
+                                                                    item.status ===
+                                                                    "Converted"
+                                                                }
                                                             >
-                                                                Convert
+                                                                {item.status ===
+                                                                "Converted"
+                                                                    ? "Converted"
+                                                                    : "Convert"}
                                                             </button>
 
                                                             <button
@@ -596,6 +629,7 @@ function Enquiries() {
                                                             </button>
 
                                                         </div>
+
                                                     </td>
 
                                                 </tr>
@@ -610,140 +644,10 @@ function Enquiries() {
                         </div>
 
                     </div>
+
                 </div>
+
             </div>
-
-            {/* VIEW MODAL */}
-
-            {showViewModal &&
-                selectedEnquiry && (
-                    <div className="modal-overlay">
-
-                        <div className="modal">
-
-                            <h2>
-                                Enquiry Details
-                            </h2>
-
-                            <p>
-                                <strong>
-                                    Name:
-                                </strong>{" "}
-                                {selectedEnquiry.name}
-                            </p>
-
-                            <p>
-                                <strong>
-                                    Email:
-                                </strong>{" "}
-                                {selectedEnquiry.email}
-                            </p>
-
-                            <p>
-                                <strong>
-                                    Phone:
-                                </strong>{" "}
-                                {selectedEnquiry.phone ||
-                                    "-"}
-                            </p>
-
-                            <p>
-                                <strong>
-                                    Service:
-                                </strong>{" "}
-                                {selectedEnquiry.service}
-                            </p>
-
-                            <p>
-                                <strong>
-                                    Message:
-                                </strong>{" "}
-                                {selectedEnquiry.message ||
-                                    "-"}
-                            </p>
-
-                            <div className="modal-buttons">
-
-                                <button
-                                    className="close-btn"
-                                    onClick={() =>
-                                        setShowViewModal(
-                                            false
-                                        )
-                                    }
-                                >
-                                    Close
-                                </button>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-                )}
-
-            {/* REPLY MODAL */}
-
-            {replyEnquiry && (
-                <div className="modal-overlay">
-
-                    <div className="modal">
-
-                        <h2>
-                            Reply to{" "}
-                            {replyEnquiry.name}
-                        </h2>
-
-                        <p>
-                            {replyEnquiry.email}
-                        </p>
-
-                        <textarea
-                            value={replyMessage}
-                            onChange={(e) =>
-                                setReplyMessage(
-                                    e.target.value
-                                )
-                            }
-                            placeholder="Type your reply..."
-                        />
-
-                        <div className="modal-buttons">
-
-                            <button
-                                className="close-btn"
-                                onClick={() =>
-                                    setReplyEnquiry(
-                                        null
-                                    )
-                                }
-                                disabled={
-                                    sendingReply
-                                }
-                            >
-                                Cancel
-                            </button>
-
-                            <button
-                                className="send-btn"
-                                onClick={
-                                    sendReply
-                                }
-                                disabled={
-                                    sendingReply
-                                }
-                            >
-                                {sendingReply
-                                    ? "Sending..."
-                                    : "Send Reply"}
-                            </button>
-
-                        </div>
-
-                    </div>
-
-                </div>
-            )}
         </>
     );
 }

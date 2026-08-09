@@ -1,748 +1,380 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import Swal from "sweetalert2";
+
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
+
+import { supabase } from "../supabaseClient";
+
 import "../css/analytics.css";
-import api from "../api";
-
-// =====================================================
-// API URL
-// =====================================================
-
-const API_URL =
-    process.env.API_URL || "http://127.0.0.1:8000";
-
-
-// =====================================================
-// ANALYTICS COMPONENT
-// =====================================================
 
 function Analytics() {
-
-    const [analytics, setAnalytics] = useState({
-        totalEnquiries: 0,
-        totalClients: 0,
-        totalProjects: 0,
-        revenue: 0,
-
-        newEnquiries: 0,
-        inProgressEnquiries: 0,
-        completedEnquiries: 0,
-        convertedEnquiries: 0,
-
-        pendingProjects: 0,
-        activeProjects: 0,
-        completedProjects: 0,
-
-        monthlyEnquiries: [],
-    });
+    const [enquiries, setEnquiries] = useState([]);
+    const [clients, setClients] = useState([]);
+    const [projects, setProjects] = useState([]);
 
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
-
-
-    // =====================================================
-    // FETCH ANALYTICS
-    // =====================================================
-
-    const fetchAnalytics = async () => {
-
-        try {
-
-            setLoading(true);
-            setError("");
-
-            const token = localStorage.getItem("token");
-
-            const response = await axios.get(
-                `${API_URL}/api/analytics`,
-                {
-                    headers: token
-                        ? {
-                            Authorization: `Bearer ${token}`,
-                        }
-                        : {},
-                }
-            );
-
-            const data = response.data || {};
-
-            setAnalytics({
-
-                totalEnquiries:
-                    data.totalEnquiries ??
-                    data.total_enquiries ??
-                    0,
-
-                totalClients:
-                    data.totalClients ??
-                    data.total_clients ??
-                    0,
-
-                totalProjects:
-                    data.totalProjects ??
-                    data.total_projects ??
-                    0,
-
-                revenue:
-                    data.revenue ??
-                    0,
-
-                newEnquiries:
-                    data.newEnquiries ??
-                    data.new_enquiries ??
-                    0,
-
-                inProgressEnquiries:
-                    data.inProgressEnquiries ??
-                    data.in_progress_enquiries ??
-                    0,
-
-                completedEnquiries:
-                    data.completedEnquiries ??
-                    data.completed_enquiries ??
-                    0,
-
-                convertedEnquiries:
-                    data.convertedEnquiries ??
-                    data.converted_enquiries ??
-                    0,
-
-                pendingProjects:
-                    data.pendingProjects ??
-                    data.pending_projects ??
-                    0,
-
-                activeProjects:
-                    data.activeProjects ??
-                    data.active_projects ??
-                    0,
-
-                completedProjects:
-                    data.completedProjects ??
-                    data.completed_projects ??
-                    0,
-
-                monthlyEnquiries:
-                    Array.isArray(data.monthlyEnquiries)
-                        ? data.monthlyEnquiries
-                        : Array.isArray(data.monthly_enquiries)
-                            ? data.monthly_enquiries
-                            : [],
-            });
-
-        } catch (err) {
-
-            console.error(
-                "Analytics Error:",
-                err.response?.data || err.message
-            );
-
-            setError(
-                err.response?.data?.detail ||
-                "Unable to load analytics data."
-            );
-
-        } finally {
-
-            setLoading(false);
-
-        }
-    };
-
-
-    // =====================================================
-    // LOAD ANALYTICS
-    // =====================================================
 
     useEffect(() => {
-
         fetchAnalytics();
-
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-
     }, []);
 
+    const fetchAnalytics = async () => {
+        try {
+            setLoading(true);
 
-    // =====================================================
-    // CALCULATIONS
-    // =====================================================
+            const [
+                enquiriesResponse,
+                clientsResponse,
+                projectsResponse,
+            ] = await Promise.all([
+                supabase
+                    .from("enquiries")
+                    .select("*"),
 
-    const enquiryConversionRate =
-        analytics.totalEnquiries > 0
-            ? Math.round(
-                (analytics.convertedEnquiries /
-                    analytics.totalEnquiries) *
-                100
-            )
-            : 0;
+                supabase
+                    .from("clients")
+                    .select("*"),
 
+                supabase
+                    .from("projects")
+                    .select("*"),
+            ]);
 
-    const enquiryCompletionRate =
-        analytics.totalEnquiries > 0
-            ? Math.round(
-                (analytics.completedEnquiries /
-                    analytics.totalEnquiries) *
-                100
-            )
-            : 0;
+            if (enquiriesResponse.error) {
+                throw enquiriesResponse.error;
+            }
 
+            if (clientsResponse.error) {
+                throw clientsResponse.error;
+            }
 
-    const projectCompletionRate =
-        analytics.totalProjects > 0
-            ? Math.round(
-                (analytics.completedProjects /
-                    analytics.totalProjects) *
-                100
-            )
-            : 0;
+            if (projectsResponse.error) {
+                throw projectsResponse.error;
+            }
 
+            setEnquiries(enquiriesResponse.data || []);
+            setClients(clientsResponse.data || []);
+            setProjects(projectsResponse.data || []);
 
-    const maxMonthlyValue =
-        analytics.monthlyEnquiries.length > 0
-            ? Math.max(
-                ...analytics.monthlyEnquiries.map(
-                    (item) =>
-                        Number(
-                            item.count ??
-                            item.value ??
-                            item.total ??
-                            0
-                        )
-                ),
-                1
-            )
-            : 1;
+        } catch (error) {
+            console.error(
+                "ANALYTICS ERROR:",
+                error
+            );
 
-
-    // =====================================================
-    // MONTH NAME
-    // =====================================================
-
-    const getMonthName = (item) => {
-
-        if (item.month) {
-            return item.month;
+            Swal.fire({
+                icon: "error",
+                title: "Unable to load analytics",
+                text:
+                    error.message ||
+                    "Could not load analytics data.",
+            });
+        } finally {
+            setLoading(false);
         }
-
-        if (item.label) {
-            return item.label;
-        }
-
-        return "";
-
     };
 
-
     // =====================================================
-    // MONTH VALUE
-    // =====================================================
-
-    const getMonthValue = (item) => {
-
-        return Number(
-            item.count ??
-            item.value ??
-            item.total ??
-            0
-        );
-
-    };
-
-
-    // =====================================================
-    // FORMAT REVENUE
+    // ENQUIRY STATISTICS
     // =====================================================
 
-    const formatRevenue = (value) => {
+    const totalEnquiries = enquiries.length;
 
-        const amount = Number(value) || 0;
+    const newEnquiries = enquiries.filter(
+        (item) => item.status === "New"
+    ).length;
 
-        if (amount >= 10000000) {
-            return `₹${(amount / 10000000).toFixed(1)}Cr`;
-        }
+    const inProgressEnquiries = enquiries.filter(
+        (item) => item.status === "In Progress"
+    ).length;
 
-        if (amount >= 100000) {
-            return `₹${(amount / 100000).toFixed(1)}L`;
-        }
+    const completedEnquiries = enquiries.filter(
+        (item) => item.status === "Completed"
+    ).length;
 
-        if (amount >= 1000) {
-            return `₹${(amount / 1000).toFixed(1)}K`;
-        }
+    const waitingClient = enquiries.filter(
+        (item) => item.status === "Waiting Client"
+    ).length;
 
-        return `₹${amount.toLocaleString("en-IN")}`;
-
-    };
-
+    const rejectedEnquiries = enquiries.filter(
+        (item) => item.status === "Rejected"
+    ).length;
 
     // =====================================================
-    // RENDER
+    // CLIENT STATISTICS
     // =====================================================
+
+    const totalClients = clients.length;
+
+    const activeClients = clients.filter(
+        (client) =>
+            String(client.status || "Active")
+                .toLowerCase() === "active"
+    ).length;
+
+    // =====================================================
+    // PROJECT STATISTICS
+    // =====================================================
+
+    const totalProjects = projects.length;
+
+    const pendingProjects = projects.filter(
+        (project) =>
+            project.status === "Pending"
+    ).length;
+
+    const activeProjects = projects.filter(
+        (project) =>
+            project.status === "In Progress"
+    ).length;
+
+    const completedProjects = projects.filter(
+        (project) =>
+            project.status === "Completed"
+    ).length;
+
+    // =====================================================
+    // CONVERSION RATE
+    // =====================================================
+
+    const convertedEnquiries = enquiries.filter(
+        (item) =>
+            item.status === "Converted"
+    ).length;
+
+    const conversionRate =
+        totalEnquiries > 0
+            ? Math.round(
+                  (convertedEnquiries /
+                      totalEnquiries) *
+                      100
+              )
+            : 0;
 
     return (
         <>
             <Sidebar />
 
             <div className="dashboard-main">
-
                 <Topbar />
 
                 <div className="dashboard-content">
 
                     <div className="analytics-page">
 
-                        {/* =================================================
-                            HEADER
-                        ================================================= */}
+                        {/* HEADER */}
 
                         <div className="analytics-header">
-
                             <div>
-
-                                <span className="analytics-eyebrow">
-                                    BUSINESS OVERVIEW
-                                </span>
-
-                                <h2>
-                                    Analytics
-                                </h2>
+                                <h2>📊 Analytics</h2>
 
                                 <p>
-                                    Track your enquiries, clients,
-                                    projects and business performance.
+                                    Overview of your business
+                                    performance and activity.
                                 </p>
-
                             </div>
-
 
                             <button
                                 className="refresh-btn"
                                 onClick={fetchAnalytics}
                                 disabled={loading}
                             >
+                                {loading
+                                    ? "Loading..."
+                                    : "↻ Refresh"}
+                            </button>
+                        </div>
 
-                                <span
-                                    className={
-                                        loading
-                                            ? "spin"
-                                            : ""
-                                    }
-                                >
-                                    ↻
+                        {/* MAIN CARDS */}
+
+                        <div className="analytics-cards">
+
+                            <div className="analytics-card">
+                                <span>
+                                    Total Enquiries
                                 </span>
 
-                                {loading
-                                    ? "Refreshing..."
-                                    : "Refresh"}
+                                <h2>
+                                    {loading
+                                        ? "..."
+                                        : totalEnquiries}
+                                </h2>
 
-                            </button>
-
-                        </div>
-
-
-                        {/* =================================================
-                            ERROR
-                        ================================================= */}
-
-                        {error && (
-
-                            <div className="analytics-error">
-
-                                <div className="error-icon">
-                                    !
-                                </div>
-
-                                <div>
-
-                                    <strong>
-                                        Unable to load analytics
-                                    </strong>
-
-                                    <p>
-                                        {error}
-                                    </p>
-
-                                </div>
-
-                                <button
-                                    onClick={fetchAnalytics}
-                                >
-                                    Try Again
-                                </button>
-
+                                <small>
+                                    All customer enquiries
+                                </small>
                             </div>
 
-                        )}
+                            <div className="analytics-card">
+                                <span>
+                                    Total Clients
+                                </span>
 
-
-                        {/* =================================================
-                            KPI CARDS
-                        ================================================= */}
-
-                        <div className="analytics-kpis">
-
-                            {/* ENQUIRIES */}
-
-                            <div className="kpi-card enquiries-card">
-
-                                <div className="kpi-top">
-
-                                    <div className="kpi-icon">
-                                        ✉
-                                    </div>
-
-                                    <span className="kpi-label">
-                                        ENQUIRIES
-                                    </span>
-
-                                </div>
-
-                                <div className="kpi-value">
-
+                                <h2>
                                     {loading
-                                        ? "—"
-                                        : analytics.totalEnquiries}
+                                        ? "..."
+                                        : totalClients}
+                                </h2>
 
-                                </div>
-
-                                <div className="kpi-bottom">
-
-                                    <span className="kpi-positive">
-                                        {analytics.newEnquiries}
-                                    </span>
-
-                                    <span>
-                                        new enquiries
-                                    </span>
-
-                                </div>
-
+                                <small>
+                                    Active customers
+                                </small>
                             </div>
 
+                            <div className="analytics-card">
+                                <span>
+                                    Total Projects
+                                </span>
 
-                            {/* CLIENTS */}
-
-                            <div className="kpi-card clients-card">
-
-                                <div className="kpi-top">
-
-                                    <div className="kpi-icon">
-                                        👥
-                                    </div>
-
-                                    <span className="kpi-label">
-                                        CLIENTS
-                                    </span>
-
-                                </div>
-
-                                <div className="kpi-value">
-
+                                <h2>
                                     {loading
-                                        ? "—"
-                                        : analytics.totalClients}
+                                        ? "..."
+                                        : totalProjects}
+                                </h2>
 
-                                </div>
-
-                                <div className="kpi-bottom">
-
-                                    <span className="kpi-positive">
-                                        Active
-                                    </span>
-
-                                    <span>
-                                        client accounts
-                                    </span>
-
-                                </div>
-
+                                <small>
+                                    All projects
+                                </small>
                             </div>
 
+                            <div className="analytics-card">
+                                <span>
+                                    Conversion Rate
+                                </span>
 
-                            {/* PROJECTS */}
-
-                            <div className="kpi-card projects-card">
-
-                                <div className="kpi-top">
-
-                                    <div className="kpi-icon">
-                                        ◈
-                                    </div>
-
-                                    <span className="kpi-label">
-                                        PROJECTS
-                                    </span>
-
-                                </div>
-
-                                <div className="kpi-value">
-
+                                <h2>
                                     {loading
-                                        ? "—"
-                                        : analytics.totalProjects}
+                                        ? "..."
+                                        : `${conversionRate}%`}
+                                </h2>
 
-                                </div>
-
-                                <div className="kpi-bottom">
-
-                                    <span className="kpi-progress">
-                                        {analytics.activeProjects}
-                                    </span>
-
-                                    <span>
-                                        active projects
-                                    </span>
-
-                                </div>
-
-                            </div>
-
-
-                            {/* REVENUE */}
-
-                            <div className="kpi-card revenue-card">
-
-                                <div className="kpi-top">
-
-                                    <div className="kpi-icon">
-                                        ₹
-                                    </div>
-
-                                    <span className="kpi-label">
-                                        REVENUE
-                                    </span>
-
-                                </div>
-
-                                <div className="kpi-value">
-
-                                    {loading
-                                        ? "—"
-                                        : formatRevenue(
-                                            analytics.revenue
-                                        )}
-
-                                </div>
-
-                                <div className="kpi-bottom">
-
-                                    <span className="kpi-revenue">
-                                        Current
-                                    </span>
-
-                                    <span>
-                                        recorded revenue
-                                    </span>
-
-                                </div>
-
+                                <small>
+                                    Enquiry to client
+                                </small>
                             </div>
 
                         </div>
 
-
-                        {/* =================================================
-                            MAIN GRID
-                        ================================================= */}
+                        {/* TWO COLUMN SECTION */}
 
                         <div className="analytics-grid">
 
-                            {/* MONTHLY ENQUIRIES */}
+                            {/* ENQUIRIES */}
 
-                            <div className="analytics-panel monthly-panel">
+                            <div className="analytics-section">
 
-                                <div className="panel-header">
+                                <div className="section-header">
+                                    <h3>
+                                        📩 Enquiries
+                                    </h3>
+                                </div>
 
-                                    <div>
+                                <div className="analytics-list">
 
-                                        <h3>
-                                            Monthly Enquiries
-                                        </h3>
+                                    <div className="analytics-row">
+                                        <span>
+                                            New
+                                        </span>
 
-                                        <p>
-                                            Enquiry activity throughout
-                                            the year
-                                        </p>
-
+                                        <strong>
+                                            {newEnquiries}
+                                        </strong>
                                     </div>
 
-                                    <span className="panel-badge">
-                                        Yearly
-                                    </span>
+                                    <div className="analytics-row">
+                                        <span>
+                                            In Progress
+                                        </span>
+
+                                        <strong>
+                                            {inProgressEnquiries}
+                                        </strong>
+                                    </div>
+
+                                    <div className="analytics-row">
+                                        <span>
+                                            Completed
+                                        </span>
+
+                                        <strong>
+                                            {completedEnquiries}
+                                        </strong>
+                                    </div>
+
+                                    <div className="analytics-row">
+                                        <span>
+                                            Waiting Client
+                                        </span>
+
+                                        <strong>
+                                            {waitingClient}
+                                        </strong>
+                                    </div>
+
+                                    <div className="analytics-row">
+                                        <span>
+                                            Rejected
+                                        </span>
+
+                                        <strong>
+                                            {rejectedEnquiries}
+                                        </strong>
+                                    </div>
+
+                                    <div className="analytics-row">
+                                        <span>
+                                            Converted
+                                        </span>
+
+                                        <strong>
+                                            {convertedEnquiries}
+                                        </strong>
+                                    </div>
 
                                 </div>
-
-
-                                <div className="bar-chart">
-
-                                    {analytics.monthlyEnquiries.length === 0 ? (
-
-                                        <div className="chart-empty">
-
-                                            <div>
-                                                No monthly enquiry data
-                                                available
-                                            </div>
-
-                                        </div>
-
-                                    ) : (
-
-                                        analytics.monthlyEnquiries.map(
-                                            (item, index) => {
-
-                                                const value =
-                                                    getMonthValue(item);
-
-                                                const height =
-                                                    Math.max(
-                                                        (value /
-                                                            maxMonthlyValue) *
-                                                        100,
-                                                        4
-                                                    );
-
-                                                return (
-
-                                                    <div
-                                                        className="chart-column"
-                                                        key={
-                                                            item.month ||
-                                                            item.label ||
-                                                            index
-                                                        }
-                                                    >
-
-                                                        <div className="chart-value">
-                                                            {value}
-                                                        </div>
-
-                                                        <div className="bar-track">
-
-                                                            <div
-                                                                className="chart-bar"
-                                                                style={{
-                                                                    height:
-                                                                        `${height}%`,
-                                                                }}
-                                                            />
-
-                                                        </div>
-
-                                                        <span className="chart-label">
-                                                            {getMonthName(item)}
-                                                        </span>
-
-                                                    </div>
-
-                                                );
-
-                                            }
-                                        )
-
-                                    )}
-
-                                </div>
-
                             </div>
 
+                            {/* PROJECTS */}
 
-                            {/* ENQUIRY OVERVIEW */}
+                            <div className="analytics-section">
 
-                            <div className="analytics-panel">
-
-                                <div className="panel-header">
-
-                                    <div>
-
-                                        <h3>
-                                            Enquiry Overview
-                                        </h3>
-
-                                        <p>
-                                            Current enquiry status
-                                        </p>
-
-                                    </div>
-
+                                <div className="section-header">
+                                    <h3>
+                                        📁 Projects
+                                    </h3>
                                 </div>
 
+                                <div className="analytics-list">
 
-                                <div className="status-list">
-
-                                    <div className="status-row">
-
-                                        <div className="status-info">
-
-                                            <span className="status-dot new-dot" />
-
-                                            <span>
-                                                New
-                                            </span>
-
-                                        </div>
+                                    <div className="analytics-row">
+                                        <span>
+                                            Pending
+                                        </span>
 
                                         <strong>
-                                            {analytics.newEnquiries}
+                                            {pendingProjects}
                                         </strong>
-
                                     </div>
 
-
-                                    <div className="status-row">
-
-                                        <div className="status-info">
-
-                                            <span className="status-dot progress-dot" />
-
-                                            <span>
-                                                In Progress
-                                            </span>
-
-                                        </div>
+                                    <div className="analytics-row">
+                                        <span>
+                                            In Progress
+                                        </span>
 
                                         <strong>
-                                            {analytics.inProgressEnquiries}
+                                            {activeProjects}
                                         </strong>
-
                                     </div>
 
-
-                                    <div className="status-row">
-
-                                        <div className="status-info">
-
-                                            <span className="status-dot completed-dot" />
-
-                                            <span>
-                                                Completed
-                                            </span>
-
-                                        </div>
+                                    <div className="analytics-row">
+                                        <span>
+                                            Completed
+                                        </span>
 
                                         <strong>
-                                            {analytics.completedEnquiries}
+                                            {completedProjects}
                                         </strong>
-
-                                    </div>
-
-
-                                    <div className="status-row">
-
-                                        <div className="status-info">
-
-                                            <span className="status-dot converted-dot" />
-
-                                            <span>
-                                                Converted
-                                            </span>
-
-                                        </div>
-
-                                        <strong>
-                                            {analytics.convertedEnquiries}
-                                        </strong>
-
                                     </div>
 
                                 </div>
@@ -751,283 +383,36 @@ function Analytics() {
 
                         </div>
 
+                        {/* CLIENTS */}
 
-                        {/* =================================================
-                            BOTTOM GRID
-                        ================================================= */}
+                        <div className="analytics-section clients-analytics">
 
-                        <div className="analytics-bottom-grid">
-
-                            {/* CONVERSION */}
-
-                            <div className="analytics-panel conversion-panel">
-
-                                <div className="panel-header">
-
-                                    <div>
-
-                                        <h3>
-                                            Conversion Rate
-                                        </h3>
-
-                                        <p>
-                                            Enquiries converted into clients
-                                        </p>
-
-                                    </div>
-
-                                </div>
-
-
-                                <div className="conversion-content">
-
-                                    <div
-                                        className="conversion-circle"
-                                        style={{
-                                            "--progress":
-                                                `${enquiryConversionRate * 3.6}deg`,
-                                        }}
-                                    >
-
-                                        <div className="conversion-inner">
-
-                                            <strong>
-                                                {enquiryConversionRate}%
-                                            </strong>
-
-                                            <span>
-                                                Conversion
-                                            </span>
-
-                                        </div>
-
-                                    </div>
-
-
-                                    <div className="conversion-details">
-
-                                        <div>
-
-                                            <span>
-                                                Total enquiries
-                                            </span>
-
-                                            <strong>
-                                                {analytics.totalEnquiries}
-                                            </strong>
-
-                                        </div>
-
-
-                                        <div>
-
-                                            <span>
-                                                Converted
-                                            </span>
-
-                                            <strong>
-                                                {analytics.convertedEnquiries}
-                                            </strong>
-
-                                        </div>
-
-                                    </div>
-
-                                </div>
-
+                            <div className="section-header">
+                                <h3>
+                                    👥 Clients
+                                </h3>
                             </div>
 
+                            <div className="analytics-list">
 
-                            {/* PROJECT OVERVIEW */}
-
-                            <div className="analytics-panel project-overview">
-
-                                <div className="panel-header">
-
-                                    <div>
-
-                                        <h3>
-                                            Project Overview
-                                        </h3>
-
-                                        <p>
-                                            Current project distribution
-                                        </p>
-
-                                    </div>
-
-                                </div>
-
-
-                                <div className="project-stats">
-
-                                    <div className="project-stat pending-project">
-
-                                        <span className="project-stat-number">
-                                            {analytics.pendingProjects}
-                                        </span>
-
-                                        <span className="project-stat-label">
-                                            Pending
-                                        </span>
-
-                                    </div>
-
-
-                                    <div className="project-stat active-project">
-
-                                        <span className="project-stat-number">
-                                            {analytics.activeProjects}
-                                        </span>
-
-                                        <span className="project-stat-label">
-                                            Active
-                                        </span>
-
-                                    </div>
-
-
-                                    <div className="project-stat completed-project">
-
-                                        <span className="project-stat-number">
-                                            {analytics.completedProjects}
-                                        </span>
-
-                                        <span className="project-stat-label">
-                                            Completed
-                                        </span>
-
-                                    </div>
-
-                                </div>
-
-
-                                <div className="project-total">
-
+                                <div className="analytics-row">
                                     <span>
-                                        Total projects
+                                        Total Clients
                                     </span>
 
                                     <strong>
-                                        {analytics.totalProjects}
+                                        {totalClients}
                                     </strong>
-
                                 </div>
 
-                            </div>
+                                <div className="analytics-row">
+                                    <span>
+                                        Active Clients
+                                    </span>
 
-
-                            {/* PERFORMANCE */}
-
-                            <div className="analytics-panel performance-panel">
-
-                                <div className="panel-header">
-
-                                    <div>
-
-                                        <h3>
-                                            Performance
-                                        </h3>
-
-                                        <p>
-                                            Overall business indicators
-                                        </p>
-
-                                    </div>
-
-                                </div>
-
-
-                                {/* ENQUIRY COMPLETION */}
-
-                                <div className="performance-item">
-
-                                    <div className="performance-top">
-
-                                        <span>
-                                            Enquiry completion
-                                        </span>
-
-                                        <strong>
-                                            {enquiryCompletionRate}%
-                                        </strong>
-
-                                    </div>
-
-                                    <div className="performance-track">
-
-                                        <div
-                                            className="performance-fill blue"
-                                            style={{
-                                                width:
-                                                    `${enquiryCompletionRate}%`,
-                                            }}
-                                        />
-
-                                    </div>
-
-                                </div>
-
-
-                                {/* CLIENT CONVERSION */}
-
-                                <div className="performance-item">
-
-                                    <div className="performance-top">
-
-                                        <span>
-                                            Client conversion
-                                        </span>
-
-                                        <strong>
-                                            {enquiryConversionRate}%
-                                        </strong>
-
-                                    </div>
-
-                                    <div className="performance-track">
-
-                                        <div
-                                            className="performance-fill green"
-                                            style={{
-                                                width:
-                                                    `${enquiryConversionRate}%`,
-                                            }}
-                                        />
-
-                                    </div>
-
-                                </div>
-
-
-                                {/* PROJECT COMPLETION */}
-
-                                <div className="performance-item">
-
-                                    <div className="performance-top">
-
-                                        <span>
-                                            Project completion
-                                        </span>
-
-                                        <strong>
-                                            {projectCompletionRate}%
-                                        </strong>
-
-                                    </div>
-
-                                    <div className="performance-track">
-
-                                        <div
-                                            className="performance-fill purple"
-                                            style={{
-                                                width:
-                                                    `${projectCompletionRate}%`,
-                                            }}
-                                        />
-
-                                    </div>
-
+                                    <strong>
+                                        {activeClients}
+                                    </strong>
                                 </div>
 
                             </div>
@@ -1037,9 +422,7 @@ function Analytics() {
                     </div>
 
                 </div>
-
             </div>
-
         </>
     );
 }

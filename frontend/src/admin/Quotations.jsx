@@ -1,615 +1,899 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import Swal from "sweetalert2";
-import api from "../api";
 
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 
+import { supabase } from "../supabaseClient";
+
 import "../css/quotations.css";
 
-const API_URL =
-  process.env.REACT_APP_API_URL || "http://127.0.0.1:8000/api";
-
 const EMPTY_QUOTATION = {
-  client: "",
-  email: "",
-  project: "",
-  amount: "",
-  status: "Draft",
+    client: "",
+    email: "",
+    project: "",
+    amount: "",
+    status: "Draft",
+    notes: "",
 };
 
 function Quotations() {
-  const [quotations, setQuotations] = useState([]);
-  const [search, setSearch] = useState("");
+    const [quotations, setQuotations] = useState([]);
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+    const [search, setSearch] = useState("");
 
-  const [showModal, setShowModal] = useState(false);
-  const [editingQuotation, setEditingQuotation] =
-    useState(null);
+    const [loading, setLoading] = useState(true);
 
-  const [form, setForm] =
-    useState(EMPTY_QUOTATION);
+    const [showModal, setShowModal] = useState(false);
 
-  const fetchQuotations = async () => {
-    try {
-      setLoading(true);
+    const [editingQuotation, setEditingQuotation] =
+        useState(null);
 
-      const response = await axios.get(
-        `${API_URL}/quotations`
-      );
+    const [form, setForm] =
+        useState({ ...EMPTY_QUOTATION });
 
-      setQuotations(response.data || []);
-    } catch (error) {
-      console.error(
-        "FETCH QUOTATIONS ERROR:",
-        error.response?.data || error.message
-      );
+    const [saving, setSaving] =
+        useState(false);
 
-      Swal.fire({
-        icon: "error",
-        title: "Unable to load quotations",
-        text:
-          error.response?.data?.detail ||
-          "Could not connect to the backend.",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+    // =====================================================
+    // FETCH QUOTATIONS
+    // =====================================================
 
-  useEffect(() => {
-    fetchQuotations();
-  }, []);
+    const fetchQuotations = async () => {
+        try {
+            setLoading(true);
 
-  const filteredQuotations = quotations.filter(
-    (quotation) => {
-      const searchText =
-        search.toLowerCase();
+            const { data, error } = await supabase
+                .from("quotations")
+                .select("*")
+                .order("created_at", {
+                    ascending: false,
+                });
 
-      return (
-        String(quotation.client || "")
-          .toLowerCase()
-          .includes(searchText) ||
-        String(quotation.email || "")
-          .toLowerCase()
-          .includes(searchText) ||
-        String(quotation.project || "")
-          .toLowerCase()
-          .includes(searchText) ||
-        String(quotation.status || "")
-          .toLowerCase()
-          .includes(searchText)
-      );
-    }
-  );
+            if (error) {
+                throw error;
+            }
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+            setQuotations(data || []);
 
-    setForm((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
-  };
+        } catch (error) {
+            console.error(
+                "FETCH QUOTATIONS ERROR:",
+                error
+            );
 
-  const openAddModal = () => {
-    setEditingQuotation(null);
-    setForm(EMPTY_QUOTATION);
-    setShowModal(true);
-  };
+            Swal.fire({
+                icon: "error",
+                title: "Unable to load quotations",
+                text:
+                    error.message ||
+                    "Could not load quotations.",
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  const openEditModal = (quotation) => {
-    setEditingQuotation(quotation);
+    useEffect(() => {
+        fetchQuotations();
+    }, []);
 
-    setForm({
-      client: quotation.client || "",
-      email: quotation.email || "",
-      project: quotation.project || "",
-      amount: quotation.amount || "",
-      status: quotation.status || "Draft",
-    });
+    // =====================================================
+    // SEARCH
+    // =====================================================
 
-    setShowModal(true);
-  };
+    const filteredQuotations =
+        quotations.filter((quotation) => {
 
-  const closeModal = () => {
-    if (saving) {
-      return;
-    }
+            const searchText =
+                search.toLowerCase().trim();
 
-    setShowModal(false);
-    setEditingQuotation(null);
-    setForm(EMPTY_QUOTATION);
-  };
+            if (!searchText) {
+                return true;
+            }
 
-  const handleSave = async (e) => {
-    e.preventDefault();
+            return (
+                String(
+                    quotation.client || ""
+                )
+                    .toLowerCase()
+                    .includes(searchText) ||
 
-    if (!form.client.trim()) {
-      Swal.fire({
-        icon: "warning",
-        title: "Client required",
-        text: "Please enter the client name.",
-      });
-      return;
-    }
+                String(
+                    quotation.email || ""
+                )
+                    .toLowerCase()
+                    .includes(searchText) ||
 
-    if (!form.project.trim()) {
-      Swal.fire({
-        icon: "warning",
-        title: "Project required",
-        text: "Please enter the project name.",
-      });
-      return;
-    }
+                String(
+                    quotation.project || ""
+                )
+                    .toLowerCase()
+                    .includes(searchText) ||
 
-    try {
-      setSaving(true);
+                String(
+                    quotation.status || ""
+                )
+                    .toLowerCase()
+                    .includes(searchText)
+            );
+        });
 
-      if (editingQuotation) {
-        await axios.put(
-          `${API_URL}/quotations/${editingQuotation._id}`,
-          form
+    // =====================================================
+    // INPUT
+    // =====================================================
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+
+        setForm((previous) => ({
+            ...previous,
+            [name]: value,
+        }));
+    };
+
+    // =====================================================
+    // ADD
+    // =====================================================
+
+    const openAddModal = () => {
+        setEditingQuotation(null);
+
+        setForm({
+            ...EMPTY_QUOTATION,
+        });
+
+        setShowModal(true);
+    };
+
+    // =====================================================
+    // EDIT
+    // =====================================================
+
+    const openEditModal = (quotation) => {
+        setEditingQuotation(quotation);
+
+        setForm({
+            client: quotation.client || "",
+            email: quotation.email || "",
+            project: quotation.project || "",
+            amount: quotation.amount || "",
+            status: quotation.status || "Draft",
+            notes: quotation.notes || "",
+        });
+
+        setShowModal(true);
+    };
+
+    // =====================================================
+    // CLOSE
+    // =====================================================
+
+    const closeModal = () => {
+        if (saving) {
+            return;
+        }
+
+        setShowModal(false);
+
+        setEditingQuotation(null);
+
+        setForm({
+            ...EMPTY_QUOTATION,
+        });
+    };
+
+    // =====================================================
+    // SAVE
+    // =====================================================
+
+    const handleSave = async (e) => {
+        e.preventDefault();
+
+        if (!form.client.trim()) {
+            Swal.fire(
+                "Client Required",
+                "Please enter the client name.",
+                "warning"
+            );
+
+            return;
+        }
+
+        if (!form.email.trim()) {
+            Swal.fire(
+                "Email Required",
+                "Please enter the client email.",
+                "warning"
+            );
+
+            return;
+        }
+
+        if (!form.project.trim()) {
+            Swal.fire(
+                "Project Required",
+                "Please enter the project name.",
+                "warning"
+            );
+
+            return;
+        }
+
+        try {
+            setSaving(true);
+
+            if (editingQuotation) {
+
+                const { error } =
+                    await supabase
+                        .from("quotations")
+                        .update({
+                            client:
+                                form.client.trim(),
+
+                            email:
+                                form.email.trim(),
+
+                            project:
+                                form.project.trim(),
+
+                            amount:
+                                Number(
+                                    form.amount || 0
+                                ),
+
+                            status:
+                                form.status,
+
+                            notes:
+                                form.notes.trim(),
+                        })
+                        .eq(
+                            "id",
+                            editingQuotation.id
+                        );
+
+                if (error) {
+                    throw error;
+                }
+
+                Swal.fire({
+                    icon: "success",
+                    title: "Quotation Updated",
+                    timer: 1500,
+                    showConfirmButton: false,
+                });
+
+            } else {
+
+                const { error } =
+                    await supabase
+                        .from("quotations")
+                        .insert([
+                            {
+                                client:
+                                    form.client.trim(),
+
+                                email:
+                                    form.email.trim(),
+
+                                project:
+                                    form.project.trim(),
+
+                                amount:
+                                    Number(
+                                        form.amount || 0
+                                    ),
+
+                                status:
+                                    form.status,
+
+                                notes:
+                                    form.notes.trim(),
+                            },
+                        ]);
+
+                if (error) {
+                    throw error;
+                }
+
+                Swal.fire({
+                    icon: "success",
+                    title: "Quotation Added",
+                    timer: 1500,
+                    showConfirmButton: false,
+                });
+            }
+
+            closeModal();
+
+            await fetchQuotations();
+
+        } catch (error) {
+            console.error(
+                "SAVE QUOTATION ERROR:",
+                error
+            );
+
+            Swal.fire({
+                icon: "error",
+                title: "Save Failed",
+                text:
+                    error.message ||
+                    "Unable to save quotation.",
+            });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // =====================================================
+    // DELETE
+    // =====================================================
+
+    const handleDelete = async (quotation) => {
+        const result = await Swal.fire({
+            title: "Delete quotation?",
+            text: `Delete quotation for ${quotation.client}?`,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Yes, delete",
+            cancelButtonText: "Cancel",
+        });
+
+        if (!result.isConfirmed) {
+            return;
+        }
+
+        try {
+            const { error } =
+                await supabase
+                    .from("quotations")
+                    .delete()
+                    .eq(
+                        "id",
+                        quotation.id
+                    );
+
+            if (error) {
+                throw error;
+            }
+
+            setQuotations((previous) =>
+                previous.filter(
+                    (item) =>
+                        item.id !== quotation.id
+                )
+            );
+
+            Swal.fire({
+                icon: "success",
+                title: "Deleted",
+                text: "Quotation deleted successfully.",
+                timer: 1400,
+                showConfirmButton: false,
+            });
+
+        } catch (error) {
+            console.error(
+                "DELETE QUOTATION ERROR:",
+                error
+            );
+
+            Swal.fire({
+                icon: "error",
+                title: "Delete Failed",
+                text:
+                    error.message ||
+                    "Unable to delete quotation.",
+            });
+        }
+    };
+
+    // =====================================================
+    // STATUS
+    // =====================================================
+
+    const updateStatus = async (
+        quotation,
+        status
+    ) => {
+
+        const oldStatus =
+            quotation.status;
+
+        setQuotations((previous) =>
+            previous.map((item) =>
+                item.id === quotation.id
+                    ? {
+                          ...item,
+                          status,
+                      }
+                    : item
+            )
         );
 
-        Swal.fire({
-          icon: "success",
-          title: "Quotation updated",
-          text: "Quotation updated successfully.",
-          timer: 1500,
-          showConfirmButton: false,
-        });
-      } else {
-        await axios.post(
-          `${API_URL}/quotations`,
-          form
-        );
+        try {
+            const { error } =
+                await supabase
+                    .from("quotations")
+                    .update({
+                        status,
+                    })
+                    .eq(
+                        "id",
+                        quotation.id
+                    );
 
-        Swal.fire({
-          icon: "success",
-          title: "Quotation created",
-          text: "Quotation created successfully.",
-          timer: 1500,
-          showConfirmButton: false,
-        });
-      }
+            if (error) {
+                throw error;
+            }
 
-      await fetchQuotations();
-      closeModal();
-    } catch (error) {
-      console.error(
-        "SAVE QUOTATION ERROR:",
-        error.response?.data || error.message
-      );
+        } catch (error) {
 
-      Swal.fire({
-        icon: "error",
-        title: "Unable to save quotation",
-        text:
-          error.response?.data?.detail ||
-          "Something went wrong.",
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
+            setQuotations((previous) =>
+                previous.map((item) =>
+                    item.id === quotation.id
+                        ? {
+                              ...item,
+                              status: oldStatus,
+                          }
+                        : item
+                )
+            );
 
-  const handleDelete = async (quotation) => {
-    const result = await Swal.fire({
-      title: "Delete quotation?",
-      text: `Delete quotation for ${quotation.client}?`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Yes, delete",
-      cancelButtonText: "Cancel",
-    });
+            Swal.fire({
+                icon: "error",
+                title: "Status Update Failed",
+                text:
+                    error.message ||
+                    "Unable to update quotation status.",
+            });
+        }
+    };
 
-    if (!result.isConfirmed) {
-      return;
-    }
+    return (
+        <>
+            <Sidebar />
 
-    try {
-      await axios.delete(
-        `${API_URL}/quotations/${quotation._id}`
-      );
+            <div className="dashboard-main">
 
-      setQuotations((previous) =>
-        previous.filter(
-          (item) =>
-            item._id !== quotation._id
-        )
-      );
+                <Topbar />
 
-      Swal.fire({
-        icon: "success",
-        title: "Deleted",
-        text: "Quotation deleted successfully.",
-        timer: 1400,
-        showConfirmButton: false,
-      });
-    } catch (error) {
-      console.error(
-        "DELETE QUOTATION ERROR:",
-        error.response?.data || error.message
-      );
+                <div className="dashboard-content">
 
-      Swal.fire({
-        icon: "error",
-        title: "Delete failed",
-        text:
-          error.response?.data?.detail ||
-          "Unable to delete quotation.",
-      });
-    }
-  };
+                    <div className="quotations-page">
 
-  const updateStatus = async (
-    quotation,
-    status
-  ) => {
-    setQuotations((previous) =>
-      previous.map((item) =>
-        item._id === quotation._id
-          ? { ...item, status }
-          : item
-      )
-    );
+                        <div className="quotations-header">
 
-    try {
-      await axios.put(
-        `${API_URL}/quotations/${quotation._id}/status`,
-        { status }
-      );
-    } catch (error) {
-      console.error(
-        "QUOTATION STATUS ERROR:",
-        error.response?.data || error.message
-      );
+                            <div>
+                                <h2>
+                                    🧾 Quotations
+                                </h2>
 
-      fetchQuotations();
+                                <p>
+                                    Create and manage
+                                    customer quotations.
+                                </p>
+                            </div>
 
-      Swal.fire({
-        icon: "error",
-        title: "Status update failed",
-        text:
-          error.response?.data?.detail ||
-          "Unable to update status.",
-      });
-    }
-  };
+                            <button
+                                className="add-quotation-btn"
+                                onClick={
+                                    openAddModal
+                                }
+                            >
+                                + Add Quotation
+                            </button>
 
-  return (
-    <div className="dashboard">
+                        </div>
 
-      <Sidebar />
+                        <input
+                            className="quotation-search"
+                            type="text"
+                            placeholder="Search quotations..."
+                            value={search}
+                            onChange={(e) =>
+                                setSearch(
+                                    e.target.value
+                                )
+                            }
+                        />
 
-      <div className="dashboard-main">
+                        <div className="table-container">
 
-        <Topbar />
+                            <table>
 
-        <div className="dashboard-content">
+                                <thead>
+                                    <tr>
+                                        <th>
+                                            S.No
+                                        </th>
 
-          <div className="quotations-page">
+                                        <th>
+                                            Client
+                                        </th>
 
-            <div className="quotations-header">
+                                        <th>
+                                            Email
+                                        </th>
 
-              <div>
-                <h2>🧾 Quotations</h2>
+                                        <th>
+                                            Project
+                                        </th>
 
-                <p>
-                  Create and manage customer quotations.
-                </p>
-              </div>
+                                        <th>
+                                            Amount
+                                        </th>
 
-              <button
-                className="add-quotation-btn"
-                onClick={openAddModal}
-              >
-                + Add Quotation
-              </button>
+                                        <th>
+                                            Status
+                                        </th>
+
+                                        <th>
+                                            Actions
+                                        </th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+
+                                    {loading ? (
+                                        <tr>
+                                            <td
+                                                colSpan="7"
+                                                className="no-data"
+                                            >
+                                                Loading
+                                                quotations...
+                                            </td>
+                                        </tr>
+                                    ) : filteredQuotations.length ===
+                                      0 ? (
+                                        <tr>
+                                            <td
+                                                colSpan="7"
+                                                className="no-data"
+                                            >
+                                                No quotations
+                                                found.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        filteredQuotations.map(
+                                            (
+                                                quotation,
+                                                index
+                                            ) => (
+                                                <tr
+                                                    key={
+                                                        quotation.id
+                                                    }
+                                                >
+
+                                                    <td>
+                                                        {index +
+                                                            1}
+                                                    </td>
+
+                                                    <td>
+                                                        <strong>
+                                                            {
+                                                                quotation.client
+                                                            }
+                                                        </strong>
+                                                    </td>
+
+                                                    <td>
+                                                        {
+                                                            quotation.email
+                                                        }
+                                                    </td>
+
+                                                    <td>
+                                                        {
+                                                            quotation.project
+                                                        }
+                                                    </td>
+
+                                                    <td>
+                                                        ₹
+                                                        {Number(
+                                                            quotation.amount ||
+                                                                0
+                                                        ).toLocaleString(
+                                                            "en-IN"
+                                                        )}
+                                                    </td>
+
+                                                    <td>
+                                                        <select
+                                                            className="quotation-status"
+                                                            value={
+                                                                quotation.status ||
+                                                                "Draft"
+                                                            }
+                                                            onChange={(
+                                                                e
+                                                            ) =>
+                                                                updateStatus(
+                                                                    quotation,
+                                                                    e
+                                                                        .target
+                                                                        .value
+                                                                )
+                                                            }
+                                                        >
+                                                            <option value="Draft">
+                                                                Draft
+                                                            </option>
+
+                                                            <option value="Sent">
+                                                                Sent
+                                                            </option>
+
+                                                            <option value="Accepted">
+                                                                Accepted
+                                                            </option>
+
+                                                            <option value="Rejected">
+                                                                Rejected
+                                                            </option>
+
+                                                            <option value="Expired">
+                                                                Expired
+                                                            </option>
+                                                        </select>
+                                                    </td>
+
+                                                    <td>
+                                                        <div className="action-buttons">
+
+                                                            <button
+                                                                className="edit-btn"
+                                                                onClick={() =>
+                                                                    openEditModal(
+                                                                        quotation
+                                                                    )
+                                                                }
+                                                            >
+                                                                Edit
+                                                            </button>
+
+                                                            <button
+                                                                className="delete-btn"
+                                                                onClick={() =>
+                                                                    handleDelete(
+                                                                        quotation
+                                                                    )
+                                                                }
+                                                            >
+                                                                Delete
+                                                            </button>
+
+                                                        </div>
+                                                    </td>
+
+                                                </tr>
+                                            )
+                                        )
+                                    )}
+
+                                </tbody>
+
+                            </table>
+
+                        </div>
+
+                    </div>
+
+                </div>
 
             </div>
 
-            <input
-              className="quotation-search"
-              type="text"
-              placeholder="Search quotations..."
-              value={search}
-              onChange={(e) =>
-                setSearch(e.target.value)
-              }
-            />
+            {/* MODAL */}
 
-            <div className="table-container">
+            {showModal && (
+                <div className="modal-overlay">
 
-              <table>
+                    <div className="modal">
 
-                <thead>
-                  <tr>
-                    <th>S.No</th>
-                    <th>Client</th>
-                    <th>Email</th>
-                    <th>Project</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
+                        <div className="modal-header">
 
-                <tbody>
+                            <h3>
+                                {editingQuotation
+                                    ? "Edit Quotation"
+                                    : "Add Quotation"}
+                            </h3>
 
-                  {loading ? (
-                    <tr>
-                      <td
-                        colSpan="7"
-                        className="no-data"
-                      >
-                        Loading quotations...
-                      </td>
-                    </tr>
-                  ) : filteredQuotations.length ===
-                    0 ? (
-                    <tr>
-                      <td
-                        colSpan="7"
-                        className="no-data"
-                      >
-                        No quotations found.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredQuotations.map(
-                      (quotation, index) => (
-                        <tr key={quotation._id}>
-
-                          <td>
-                            {index + 1}
-                          </td>
-
-                          <td>
-                            {quotation.client || "-"}
-                          </td>
-
-                          <td>
-                            {quotation.email || "-"}
-                          </td>
-
-                          <td>
-                            {quotation.project || "-"}
-                          </td>
-
-                          <td>
-                            ₹{quotation.amount || "0"}
-                          </td>
-
-                          <td>
-
-                            <select
-                              className="status-select"
-                              value={
-                                quotation.status ||
-                                "Draft"
-                              }
-                              onChange={(e) =>
-                                updateStatus(
-                                  quotation,
-                                  e.target.value
-                                )
-                              }
+                            <button
+                                type="button"
+                                className="modal-close"
+                                onClick={
+                                    closeModal
+                                }
                             >
-                              <option>
-                                Draft
-                              </option>
+                                ×
+                            </button>
 
-                              <option>
-                                Sent
-                              </option>
+                        </div>
 
-                              <option>
-                                Accepted
-                              </option>
+                        <form
+                            onSubmit={
+                                handleSave
+                            }
+                        >
 
-                              <option>
-                                Rejected
-                              </option>
-                            </select>
+                            <div className="form-group">
+                                <label>
+                                    Client
+                                </label>
 
-                          </td>
+                                <input
+                                    type="text"
+                                    name="client"
+                                    value={
+                                        form.client
+                                    }
+                                    onChange={
+                                        handleChange
+                                    }
+                                    placeholder="Client name"
+                                    required
+                                />
+                            </div>
 
-                          <td>
+                            <div className="form-group">
+                                <label>
+                                    Email
+                                </label>
 
-                            <div className="action-buttons">
+                                <input
+                                    type="email"
+                                    name="email"
+                                    value={
+                                        form.email
+                                    }
+                                    onChange={
+                                        handleChange
+                                    }
+                                    placeholder="Client email"
+                                    required
+                                />
+                            </div>
 
-                              <button
-                                className="edit-btn"
-                                onClick={() =>
-                                  openEditModal(
-                                    quotation
-                                  )
-                                }
-                              >
-                                Edit
-                              </button>
+                            <div className="form-group">
+                                <label>
+                                    Project
+                                </label>
 
-                              <button
-                                className="delete-btn"
-                                onClick={() =>
-                                  handleDelete(
-                                    quotation
-                                  )
-                                }
-                              >
-                                Delete
-                              </button>
+                                <input
+                                    type="text"
+                                    name="project"
+                                    value={
+                                        form.project
+                                    }
+                                    onChange={
+                                        handleChange
+                                    }
+                                    placeholder="Project name"
+                                    required
+                                />
+                            </div>
+
+                            <div className="form-group">
+                                <label>
+                                    Amount
+                                </label>
+
+                                <input
+                                    type="number"
+                                    name="amount"
+                                    min="0"
+                                    value={
+                                        form.amount
+                                    }
+                                    onChange={
+                                        handleChange
+                                    }
+                                    placeholder="Quotation amount"
+                                />
+                            </div>
+
+                            <div className="form-group">
+                                <label>
+                                    Status
+                                </label>
+
+                                <select
+                                    name="status"
+                                    value={
+                                        form.status
+                                    }
+                                    onChange={
+                                        handleChange
+                                    }
+                                >
+                                    <option value="Draft">
+                                        Draft
+                                    </option>
+
+                                    <option value="Sent">
+                                        Sent
+                                    </option>
+
+                                    <option value="Accepted">
+                                        Accepted
+                                    </option>
+
+                                    <option value="Rejected">
+                                        Rejected
+                                    </option>
+
+                                    <option value="Expired">
+                                        Expired
+                                    </option>
+                                </select>
+                            </div>
+
+                            <div className="form-group">
+                                <label>
+                                    Notes
+                                </label>
+
+                                <textarea
+                                    name="notes"
+                                    rows="4"
+                                    value={
+                                        form.notes
+                                    }
+                                    onChange={
+                                        handleChange
+                                    }
+                                    placeholder="Quotation notes..."
+                                />
+                            </div>
+
+                            <div className="modal-buttons">
+
+                                <button
+                                    type="button"
+                                    className="close-btn"
+                                    onClick={
+                                        closeModal
+                                    }
+                                    disabled={
+                                        saving
+                                    }
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    type="submit"
+                                    className="save-btn"
+                                    disabled={
+                                        saving
+                                    }
+                                >
+                                    {saving
+                                        ? "Saving..."
+                                        : editingQuotation
+                                        ? "Save Changes"
+                                        : "Add Quotation"}
+                                </button>
 
                             </div>
 
-                          </td>
+                        </form>
 
-                        </tr>
-                      )
-                    )
-                  )}
+                    </div>
 
-                </tbody>
-
-              </table>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </div>
-
-      {showModal && (
-        <div className="modal-overlay">
-
-          <div className="quotation-modal">
-
-            <div className="modal-header">
-
-              <h3>
-                {editingQuotation
-                  ? "Edit Quotation"
-                  : "Add Quotation"}
-              </h3>
-
-              <button
-                className="modal-close"
-                onClick={closeModal}
-              >
-                ×
-              </button>
-
-            </div>
-
-            <form onSubmit={handleSave}>
-
-              <div className="form-group">
-
-                <label>
-                  Client
-                </label>
-
-                <input
-                  type="text"
-                  name="client"
-                  value={form.client}
-                  onChange={handleChange}
-                  placeholder="Client name"
-                  required
-                />
-
-              </div>
-
-              <div className="form-group">
-
-                <label>
-                  Email
-                </label>
-
-                <input
-                  type="email"
-                  name="email"
-                  value={form.email}
-                  onChange={handleChange}
-                  placeholder="client@email.com"
-                />
-
-              </div>
-
-              <div className="form-group">
-
-                <label>
-                  Project
-                </label>
-
-                <input
-                  type="text"
-                  name="project"
-                  value={form.project}
-                  onChange={handleChange}
-                  placeholder="Project name"
-                  required
-                />
-
-              </div>
-
-              <div className="form-group">
-
-                <label>
-                  Amount
-                </label>
-
-                <input
-                  type="number"
-                  name="amount"
-                  value={form.amount}
-                  onChange={handleChange}
-                  placeholder="Quotation amount"
-                  min="0"
-                />
-
-              </div>
-
-              <div className="form-group">
-
-                <label>
-                  Status
-                </label>
-
-                <select
-                  name="status"
-                  value={form.status}
-                  onChange={handleChange}
-                >
-                  <option>Draft</option>
-                  <option>Sent</option>
-                  <option>Accepted</option>
-                  <option>Rejected</option>
-                </select>
-
-              </div>
-
-              <div className="modal-actions">
-
-                <button
-                  type="button"
-                  className="cancel-btn"
-                  onClick={closeModal}
-                  disabled={saving}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  className="save-btn"
-                  disabled={saving}
-                >
-                  {saving
-                    ? "Saving..."
-                    : editingQuotation
-                    ? "Save Changes"
-                    : "Add Quotation"}
-                </button>
-
-              </div>
-
-            </form>
-
-          </div>
-
-        </div>
-      )}
-
-    </div>
-  );
+                </div>
+            )}
+        </>
+    );
 }
 
 export default Quotations;

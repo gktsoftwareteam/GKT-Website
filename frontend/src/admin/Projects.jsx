@@ -1,26 +1,17 @@
-import React, { useCallback, useEffect, useState } from "react";
-import axios from "axios";
+import React, {
+    useCallback,
+    useEffect,
+    useState,
+} from "react";
+
 import Swal from "sweetalert2";
 
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
-import api from "../api";
+
+import { supabase } from "../lib/supabase";
+
 import "../css/projects.css";
-
-// =====================================================
-// API BASE URL
-// =====================================================
-
-const API_BASE_URL = (
-    process.env.REACT_APP_API_URL ||
-    "https://gkt-website.onrender.com"
-).replace(/\/+$/, "");
-
-const API_URL = `${API_BASE_URL}/api/projects`;
-
-// =====================================================
-// EMPTY PROJECT
-// =====================================================
 
 const EMPTY_PROJECT = {
     name: "",
@@ -31,197 +22,123 @@ const EMPTY_PROJECT = {
     status: "Pending",
 };
 
-// =====================================================
-// PROJECTS
-// =====================================================
-
 function Projects() {
-    const [projects, setProjects] = useState([]);
-    const [search, setSearch] = useState("");
-    const [loading, setLoading] = useState(true);
+    const [projects, setProjects] =
+        useState([]);
 
-    const [showModal, setShowModal] = useState(false);
-    const [showViewModal, setShowViewModal] = useState(false);
+    const [search, setSearch] =
+        useState("");
 
-    const [editingProject, setEditingProject] = useState(null);
-    const [selectedProject, setSelectedProject] = useState(null);
+    const [loading, setLoading] =
+        useState(true);
 
-    const [form, setForm] = useState({
-        ...EMPTY_PROJECT,
-    });
+    const [showModal, setShowModal] =
+        useState(false);
 
-    const [saving, setSaving] = useState(false);
+    const [showViewModal, setShowViewModal] =
+        useState(false);
 
-    // =====================================================
-    // AUTH CONFIG
-    // =====================================================
+    const [editingProject, setEditingProject] =
+        useState(null);
 
-    const getConfig = () => {
-        const token = localStorage.getItem("token");
+    const [selectedProject, setSelectedProject] =
+        useState(null);
 
-        if (!token) {
-            return {};
-        }
+    const [form, setForm] =
+        useState({
+            ...EMPTY_PROJECT,
+        });
 
-        return {
-            headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-            },
-        };
-    };
+    const [saving, setSaving] =
+        useState(false);
 
-    // =====================================================
-    // CHECK TOKEN
-    // =====================================================
+    const fetchProjects = useCallback(
+        async () => {
+            try {
+                setLoading(true);
 
-    const checkAuthentication = () => {
-        const token = localStorage.getItem("token");
+                const {
+                    data,
+                    error,
+                } = await supabase
+                    .from("projects")
+                    .select("*")
+                    .order("created_at", {
+                        ascending: false,
+                    });
 
-        if (!token) {
-            Swal.fire({
-                icon: "warning",
-                title: "Login Required",
-                text: "Your admin session has expired. Please login again.",
-                confirmButtonText: "Login",
-            }).then(() => {
-                window.location.href = "/admin";
-            });
+                if (error) {
+                    throw error;
+                }
 
-            return false;
-        }
-
-        return true;
-    };
-
-    // =====================================================
-    // FETCH PROJECTS
-    // =====================================================
-
-    const fetchProjects = useCallback(async () => {
-        if (!checkAuthentication()) {
-            setLoading(false);
-            return;
-        }
-
-        try {
-            setLoading(true);
-
-            console.log("Fetching projects from:", API_URL);
-
-            const response = await axios.get(
-                API_URL,
-                getConfig()
-            );
-
-            console.log(
-                "PROJECTS RESPONSE:",
-                response.data
-            );
-
-            if (Array.isArray(response.data)) {
-                setProjects(response.data);
-            } else if (Array.isArray(response.data?.projects)) {
-                setProjects(response.data.projects);
-            } else {
-                setProjects([]);
-            }
-
-        } catch (error) {
-            console.error(
-                "FETCH PROJECTS ERROR:",
-                error.response?.data || error.message
-            );
-
-            if (error.response?.status === 401) {
-                localStorage.removeItem("token");
+                setProjects(data || []);
+            } catch (error) {
+                console.error(
+                    "FETCH PROJECTS ERROR:",
+                    error
+                );
 
                 Swal.fire({
-                    icon: "warning",
-                    title: "Session Expired",
-                    text: "Please login again.",
-                    confirmButtonText: "Login",
-                }).then(() => {
-                    window.location.href = "/admin";
+                    icon: "error",
+                    title: "Unable to load projects",
+                    text:
+                        error.message ||
+                        "Could not load projects.",
                 });
-
-                return;
+            } finally {
+                setLoading(false);
             }
-
-            setProjects([]);
-
-            Swal.fire({
-                icon: "error",
-                title: "Unable to Load Projects",
-                text:
-                    error.response?.data?.detail ||
-                    "Could not connect to the backend.",
-            });
-
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    // =====================================================
-    // LOAD PROJECTS
-    // =====================================================
+        },
+        []
+    );
 
     useEffect(() => {
         fetchProjects();
     }, [fetchProjects]);
 
-    // =====================================================
-    // SEARCH
-    // =====================================================
+    const filteredProjects =
+        projects.filter((project) => {
+            const searchText =
+                search.toLowerCase().trim();
 
-    const filteredProjects = projects.filter((project) => {
-        const searchText = search
-            .toLowerCase()
-            .trim();
+            if (!searchText) {
+                return true;
+            }
 
-        if (!searchText) {
-            return true;
-        }
+            return (
+                String(project.name || "")
+                    .toLowerCase()
+                    .includes(searchText) ||
 
-        return (
-            String(project.name || "")
-                .toLowerCase()
-                .includes(searchText) ||
+                String(project.client || "")
+                    .toLowerCase()
+                    .includes(searchText) ||
 
-            String(project.client || "")
-                .toLowerCase()
-                .includes(searchText) ||
+                String(project.developer || "")
+                    .toLowerCase()
+                    .includes(searchText) ||
 
-            String(project.developer || "")
-                .toLowerCase()
-                .includes(searchText) ||
-
-            String(project.status || "")
-                .toLowerCase()
-                .includes(searchText)
-        );
-    });
-
-    // =====================================================
-    // HANDLE INPUT
-    // =====================================================
+                String(project.status || "")
+                    .toLowerCase()
+                    .includes(searchText)
+            );
+        });
 
     const handleChange = (e) => {
-        const { name, value } = e.target;
+        const {
+            name,
+            value,
+        } = e.target;
 
         setForm((previous) => ({
             ...previous,
+
             [name]:
                 name === "progress"
                     ? Number(value)
                     : value,
         }));
     };
-
-    // =====================================================
-    // OPEN ADD MODAL
-    // =====================================================
 
     const openAddModal = () => {
         setEditingProject(null);
@@ -233,28 +150,26 @@ function Projects() {
         setShowModal(true);
     };
 
-    // =====================================================
-    // OPEN EDIT MODAL
-    // =====================================================
-
     const openEditModal = (project) => {
         setEditingProject(project);
 
         setForm({
             name: project.name || "",
             client: project.client || "",
-            developer: project.developer || "",
-            deadline: project.deadline || "",
-            progress: Number(project.progress || 0),
-            status: project.status || "Pending",
+            developer:
+                project.developer || "",
+            deadline:
+                project.deadline || "",
+            progress: Number(
+                project.progress || 0
+            ),
+            status:
+                project.status ||
+                "Pending",
         });
 
         setShowModal(true);
     };
-
-    // =====================================================
-    // CLOSE MODAL
-    // =====================================================
 
     const closeModal = () => {
         if (saving) {
@@ -262,6 +177,7 @@ function Projects() {
         }
 
         setShowModal(false);
+
         setEditingProject(null);
 
         setForm({
@@ -269,22 +185,15 @@ function Projects() {
         });
     };
 
-    // =====================================================
-    // SAVE PROJECT
-    // =====================================================
-
     const handleSave = async (e) => {
         e.preventDefault();
-
-        if (!checkAuthentication()) {
-            return;
-        }
 
         if (!form.name.trim()) {
             Swal.fire({
                 icon: "warning",
-                title: "Project Name Required",
-                text: "Please enter the project name.",
+                title: "Project name required",
+                text:
+                    "Please enter the project name.",
             });
 
             return;
@@ -293,8 +202,9 @@ function Projects() {
         if (!form.client.trim()) {
             Swal.fire({
                 icon: "warning",
-                title: "Client Required",
-                text: "Please enter the client name.",
+                title: "Client required",
+                text:
+                    "Please enter the client name.",
             });
 
             return;
@@ -303,8 +213,9 @@ function Projects() {
         if (!form.developer.trim()) {
             Swal.fire({
                 icon: "warning",
-                title: "Developer Required",
-                text: "Please enter the developer name.",
+                title: "Developer required",
+                text:
+                    "Please enter the developer name.",
             });
 
             return;
@@ -313,189 +224,170 @@ function Projects() {
         try {
             setSaving(true);
 
-            // =================================================
-            // UPDATE
-            // =================================================
+            const projectData = {
+                name: form.name.trim(),
+                client: form.client.trim(),
+                developer:
+                    form.developer.trim(),
+                deadline:
+                    form.deadline ||
+                    null,
+                progress: Math.min(
+                    100,
+                    Math.max(
+                        0,
+                        Number(
+                            form.progress
+                        )
+                    )
+                ),
+                status: form.status,
+            };
 
             if (editingProject) {
-                console.log(
-                    "Updating project:",
-                    editingProject._id
-                );
+                const {
+                    error,
+                } = await supabase
+                    .from("projects")
+                    .update(projectData)
+                    .eq(
+                        "id",
+                        editingProject.id
+                    );
 
-                await axios.put(
-                    `${API_URL}/${editingProject._id}`,
-                    form,
-                    getConfig()
-                );
+                if (error) {
+                    throw error;
+                }
 
-                await fetchProjects();
-
-                await Swal.fire({
+                Swal.fire({
                     icon: "success",
-                    title: "Project Updated",
-                    text: "Project details updated successfully.",
+                    title: "Project updated",
+                    text:
+                        "Project details updated successfully.",
+                    timer: 1500,
+                    showConfirmButton: false,
+                });
+            } else {
+                const {
+                    error,
+                } = await supabase
+                    .from("projects")
+                    .insert(
+                        projectData
+                    );
+
+                if (error) {
+                    throw error;
+                }
+
+                Swal.fire({
+                    icon: "success",
+                    title: "Project added",
+                    text:
+                        "Project has been added successfully.",
                     timer: 1500,
                     showConfirmButton: false,
                 });
             }
 
-            // =================================================
-            // CREATE
-            // =================================================
-
-            else {
-                console.log(
-                    "Creating project:",
-                    form
-                );
-
-                await axios.post(
-                    API_URL,
-                    form,
-                    getConfig()
-                );
-
-                await fetchProjects();
-
-                await Swal.fire({
-                    icon: "success",
-                    title: "Project Added",
-                    text: "Project has been added successfully.",
-                    timer: 1500,
-                    showConfirmButton: false,
-                });
-            }
+            await fetchProjects();
 
             closeModal();
-
         } catch (error) {
             console.error(
                 "SAVE PROJECT ERROR:",
-                error.response?.data || error.message
+                error
             );
-
-            if (error.response?.status === 401) {
-                localStorage.removeItem("token");
-
-                Swal.fire({
-                    icon: "warning",
-                    title: "Session Expired",
-                    text: "Please login again.",
-                }).then(() => {
-                    window.location.href = "/admin";
-                });
-
-                return;
-            }
 
             Swal.fire({
                 icon: "error",
-                title: "Unable to Save Project",
+                title: "Unable to save project",
                 text:
-                    error.response?.data?.detail ||
+                    error.message ||
                     "Something went wrong while saving the project.",
             });
-
         } finally {
             setSaving(false);
         }
     };
 
-    // =====================================================
-    // VIEW PROJECT
-    // =====================================================
-
     const handleView = (project) => {
         setSelectedProject(project);
+
         setShowViewModal(true);
     };
 
-    // =====================================================
-    // DELETE PROJECT
-    // =====================================================
-
     const handleDelete = async (project) => {
-        if (!checkAuthentication()) {
-            return;
-        }
-
-        const result = await Swal.fire({
-            title: "Delete Project?",
-            text: `Are you sure you want to delete "${project.name}"?`,
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonText: "Yes, Delete",
-            cancelButtonText: "Cancel",
-        });
+        const result =
+            await Swal.fire({
+                title: "Delete project?",
+                text:
+                    `Are you sure you want to delete "${project.name}"?`,
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonText:
+                    "Yes, delete",
+                cancelButtonText:
+                    "Cancel",
+            });
 
         if (!result.isConfirmed) {
             return;
         }
 
         try {
-            await axios.delete(
-                `${API_URL}/${project._id}`,
-                getConfig()
-            );
+            const {
+                error,
+            } = await supabase
+                .from("projects")
+                .delete()
+                .eq("id", project.id);
 
-            await fetchProjects();
+            if (error) {
+                throw error;
+            }
+
+            setProjects((previous) =>
+                previous.filter(
+                    (item) =>
+                        item.id !== project.id
+                )
+            );
 
             Swal.fire({
                 icon: "success",
                 title: "Deleted",
-                text: "Project deleted successfully.",
+                text:
+                    "Project deleted successfully.",
                 timer: 1500,
                 showConfirmButton: false,
             });
-
         } catch (error) {
             console.error(
                 "DELETE PROJECT ERROR:",
-                error.response?.data || error.message
+                error
             );
-
-            if (error.response?.status === 401) {
-                localStorage.removeItem("token");
-
-                Swal.fire({
-                    icon: "warning",
-                    title: "Session Expired",
-                    text: "Please login again.",
-                }).then(() => {
-                    window.location.href = "/admin";
-                });
-
-                return;
-            }
 
             Swal.fire({
                 icon: "error",
-                title: "Delete Failed",
+                title: "Delete failed",
                 text:
-                    error.response?.data?.detail ||
+                    error.message ||
                     "Unable to delete the project.",
             });
         }
     };
 
-    // =====================================================
-    // UPDATE STATUS
-    // =====================================================
-
     const handleStatusChange = async (
         project,
         newStatus
     ) => {
-        if (!checkAuthentication()) {
-            return;
-        }
-
-        const oldStatus = project.status;
+        const oldStatus =
+            project.status;
 
         setProjects((previous) =>
             previous.map((item) =>
-                item._id === project._id
+                item.id === project.id
                     ? {
                           ...item,
                           status: newStatus,
@@ -505,83 +397,76 @@ function Projects() {
         );
 
         try {
-            await axios.put(
-                `${API_URL}/${project._id}/status`,
-                {
+            const {
+                error,
+            } = await supabase
+                .from("projects")
+                .update({
                     status: newStatus,
-                },
-                getConfig()
-            );
+                })
+                .eq(
+                    "id",
+                    project.id
+                );
 
+            if (error) {
+                throw error;
+            }
         } catch (error) {
             console.error(
                 "STATUS UPDATE ERROR:",
-                error.response?.data || error.message
+                error
             );
 
             setProjects((previous) =>
                 previous.map((item) =>
-                    item._id === project._id
+                    item.id === project.id
                         ? {
                               ...item,
-                              status: oldStatus,
+                              status:
+                                  oldStatus,
                           }
                         : item
                 )
             );
 
-            if (error.response?.status === 401) {
-                localStorage.removeItem("token");
-
-                Swal.fire({
-                    icon: "warning",
-                    title: "Session Expired",
-                    text: "Please login again.",
-                }).then(() => {
-                    window.location.href = "/admin";
-                });
-
-                return;
-            }
-
             Swal.fire({
                 icon: "error",
-                title: "Status Update Failed",
+                title: "Status update failed",
                 text:
-                    error.response?.data?.detail ||
+                    error.message ||
                     "Unable to update project status.",
             });
         }
     };
 
-    // =====================================================
-    // STATUS CLASS
-    // =====================================================
-
     const getStatusClass = (status) => {
-        return String(status || "Pending")
+        return String(
+            status || "Pending"
+        )
             .toLowerCase()
-            .replace(/\s+/g, "-");
+            .replace(
+                /\s+/g,
+                "-"
+            );
     };
-
-    // =====================================================
-    // RENDER
-    // =====================================================
 
     return (
         <>
             <Sidebar />
 
             <div className="dashboard-main">
+
                 <Topbar />
 
                 <div className="dashboard-content">
+
                     <div className="projects-page">
 
-                        {/* HEADER */}
-
                         <div className="projects-header">
+
                             <div>
+
                                 <h2>
                                     📁 Projects
                                 </h2>
@@ -592,17 +477,19 @@ function Projects() {
                                     deadlines and
                                     project progress.
                                 </p>
+
                             </div>
 
                             <button
                                 className="add-project-btn"
-                                onClick={openAddModal}
+                                onClick={
+                                    openAddModal
+                                }
                             >
                                 + Add Project
                             </button>
-                        </div>
 
-                        {/* SEARCH */}
+                        </div>
 
                         <input
                             className="project-search"
@@ -616,11 +503,12 @@ function Projects() {
                             }
                         />
 
-                        {/* TABLE */}
-
                         <div className="table-container">
+
                             <table>
+
                                 <thead>
+
                                     <tr>
                                         <th>ID</th>
                                         <th>Project</th>
@@ -631,9 +519,11 @@ function Projects() {
                                         <th>Status</th>
                                         <th>Actions</th>
                                     </tr>
+
                                 </thead>
 
                                 <tbody>
+
                                     {loading ? (
                                         <tr>
                                             <td
@@ -656,7 +546,11 @@ function Projects() {
                                         </tr>
                                     ) : (
                                         filteredProjects.map(
-                                            (project, index) => {
+                                            (
+                                                project,
+                                                index
+                                            ) => {
+
                                                 const progress =
                                                     Math.min(
                                                         100,
@@ -672,13 +566,13 @@ function Projects() {
                                                 return (
                                                     <tr
                                                         key={
-                                                            project._id ||
-                                                            project.id ||
-                                                            index
+                                                            project.id
                                                         }
                                                     >
+
                                                         <td>
-                                                            {index + 1}
+                                                            {index +
+                                                                1}
                                                         </td>
 
                                                         <td>
@@ -690,29 +584,40 @@ function Projects() {
                                                         </td>
 
                                                         <td>
-                                                            {project.client ||
-                                                                "-"}
+                                                            {
+                                                                project.client ||
+                                                                "-"
+                                                            }
                                                         </td>
 
                                                         <td>
-                                                            {project.developer ||
-                                                                "-"}
+                                                            {
+                                                                project.developer ||
+                                                                "-"
+                                                            }
                                                         </td>
 
                                                         <td>
-                                                            {project.deadline ||
-                                                                "-"}
+                                                            {
+                                                                project.deadline ||
+                                                                "-"
+                                                            }
                                                         </td>
 
                                                         <td>
+
                                                             <div className="progress-wrapper">
+
                                                                 <div className="progress-bar">
+
                                                                     <div
                                                                         className="progress-fill"
                                                                         style={{
-                                                                            width: `${progress}%`,
+                                                                            width:
+                                                                                `${progress}%`,
                                                                         }}
                                                                     />
+
                                                                 </div>
 
                                                                 <span>
@@ -721,10 +626,13 @@ function Projects() {
                                                                     }
                                                                     %
                                                                 </span>
+
                                                             </div>
+
                                                         </td>
 
                                                         <td>
+
                                                             <select
                                                                 className={`project-status ${getStatusClass(
                                                                     project.status
@@ -738,10 +646,13 @@ function Projects() {
                                                                 ) =>
                                                                     handleStatusChange(
                                                                         project,
-                                                                        e.target.value
+                                                                        e
+                                                                            .target
+                                                                            .value
                                                                     )
                                                                 }
                                                             >
+
                                                                 <option value="Pending">
                                                                     Pending
                                                                 </option>
@@ -761,10 +672,13 @@ function Projects() {
                                                                 <option value="Cancelled">
                                                                     Cancelled
                                                                 </option>
+
                                                             </select>
+
                                                         </td>
 
                                                         <td>
+
                                                             <div className="project-actions">
 
                                                                 <button
@@ -801,28 +715,34 @@ function Projects() {
                                                                 </button>
 
                                                             </div>
+
                                                         </td>
+
                                                     </tr>
                                                 );
                                             }
                                         )
                                     )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
-            {/* =====================================================
-                ADD / EDIT MODAL
-            ===================================================== */}
+                                </tbody>
+
+                            </table>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
 
             {showModal && (
                 <div className="modal-overlay">
+
                     <div className="project-modal">
 
                         <div className="modal-header">
+
                             <h3>
                                 {editingProject
                                     ? "Edit Project"
@@ -832,15 +752,23 @@ function Projects() {
                             <button
                                 type="button"
                                 className="modal-close"
-                                onClick={closeModal}
+                                onClick={
+                                    closeModal
+                                }
                             >
                                 ×
                             </button>
+
                         </div>
 
-                        <form onSubmit={handleSave}>
+                        <form
+                            onSubmit={
+                                handleSave
+                            }
+                        >
 
                             <div className="form-group">
+
                                 <label>
                                     Project Name
                                 </label>
@@ -848,14 +776,20 @@ function Projects() {
                                 <input
                                     type="text"
                                     name="name"
-                                    value={form.name}
-                                    onChange={handleChange}
+                                    value={
+                                        form.name
+                                    }
+                                    onChange={
+                                        handleChange
+                                    }
                                     placeholder="Enter project name"
                                     required
                                 />
+
                             </div>
 
                             <div className="form-group">
+
                                 <label>
                                     Client
                                 </label>
@@ -863,14 +797,20 @@ function Projects() {
                                 <input
                                     type="text"
                                     name="client"
-                                    value={form.client}
-                                    onChange={handleChange}
+                                    value={
+                                        form.client
+                                    }
+                                    onChange={
+                                        handleChange
+                                    }
                                     placeholder="Enter client name"
                                     required
                                 />
+
                             </div>
 
                             <div className="form-group">
+
                                 <label>
                                     Developer
                                 </label>
@@ -878,14 +818,20 @@ function Projects() {
                                 <input
                                     type="text"
                                     name="developer"
-                                    value={form.developer}
-                                    onChange={handleChange}
+                                    value={
+                                        form.developer
+                                    }
+                                    onChange={
+                                        handleChange
+                                    }
                                     placeholder="Enter developer name"
                                     required
                                 />
+
                             </div>
 
                             <div className="form-group">
+
                                 <label>
                                     Deadline
                                 </label>
@@ -893,14 +839,23 @@ function Projects() {
                                 <input
                                     type="date"
                                     name="deadline"
-                                    value={form.deadline}
-                                    onChange={handleChange}
+                                    value={
+                                        form.deadline
+                                    }
+                                    onChange={
+                                        handleChange
+                                    }
                                 />
+
                             </div>
 
                             <div className="form-group">
+
                                 <label>
-                                    Progress: {form.progress}%
+                                    Progress:{" "}
+                                    {
+                                        form.progress
+                                    }%
                                 </label>
 
                                 <input
@@ -908,21 +863,32 @@ function Projects() {
                                     name="progress"
                                     min="0"
                                     max="100"
-                                    value={form.progress}
-                                    onChange={handleChange}
+                                    value={
+                                        form.progress
+                                    }
+                                    onChange={
+                                        handleChange
+                                    }
                                 />
+
                             </div>
 
                             <div className="form-group">
+
                                 <label>
                                     Status
                                 </label>
 
                                 <select
                                     name="status"
-                                    value={form.status}
-                                    onChange={handleChange}
+                                    value={
+                                        form.status
+                                    }
+                                    onChange={
+                                        handleChange
+                                    }
                                 >
+
                                     <option value="Pending">
                                         Pending
                                     </option>
@@ -942,7 +908,9 @@ function Projects() {
                                     <option value="Cancelled">
                                         Cancelled
                                     </option>
+
                                 </select>
+
                             </div>
 
                             <div className="modal-actions">
@@ -950,8 +918,12 @@ function Projects() {
                                 <button
                                     type="button"
                                     className="cancel-btn"
-                                    onClick={closeModal}
-                                    disabled={saving}
+                                    onClick={
+                                        closeModal
+                                    }
+                                    disabled={
+                                        saving
+                                    }
                                 >
                                     Cancel
                                 </button>
@@ -959,7 +931,9 @@ function Projects() {
                                 <button
                                     type="submit"
                                     className="save-btn"
-                                    disabled={saving}
+                                    disabled={
+                                        saving
+                                    }
                                 >
                                     {saving
                                         ? "Saving..."
@@ -969,21 +943,22 @@ function Projects() {
                                 </button>
 
                             </div>
+
                         </form>
+
                     </div>
+
                 </div>
             )}
-
-            {/* =====================================================
-                VIEW MODAL
-            ===================================================== */}
 
             {showViewModal &&
                 selectedProject && (
                     <div className="modal-overlay">
+
                         <div className="project-modal view-modal">
 
                             <div className="modal-header">
+
                                 <h3>
                                     Project Details
                                 </h3>
@@ -992,11 +967,14 @@ function Projects() {
                                     type="button"
                                     className="modal-close"
                                     onClick={() =>
-                                        setShowViewModal(false)
+                                        setShowViewModal(
+                                            false
+                                        )
                                     }
                                 >
                                     ×
                                 </button>
+
                             </div>
 
                             <div className="project-details">
@@ -1058,11 +1036,12 @@ function Projects() {
                                     </strong>
 
                                     <span>
-                                        {Number(
-                                            selectedProject.progress ||
-                                                0
-                                        )}
-                                        %
+                                        {
+                                            Number(
+                                                selectedProject.progress ||
+                                                    0
+                                            )
+                                        }%
                                     </span>
                                 </div>
 
@@ -1091,7 +1070,9 @@ function Projects() {
                                     type="button"
                                     className="close-btn"
                                     onClick={() =>
-                                        setShowViewModal(false)
+                                        setShowViewModal(
+                                            false
+                                        )
                                     }
                                 >
                                     Close
@@ -1100,6 +1081,7 @@ function Projects() {
                             </div>
 
                         </div>
+
                     </div>
                 )}
         </>

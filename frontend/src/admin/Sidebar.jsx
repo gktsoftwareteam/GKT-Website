@@ -2,14 +2,19 @@ import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import "../css/sidebar.css";
+import { supabase } from "../lib/supabase";
 
 function Sidebar() {
   const navigate = useNavigate();
 
-  const logout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+
     localStorage.removeItem("admin");
-    navigate("/admin");
-  };
+    localStorage.removeItem("token");
+
+    window.location.href = "/admin";
+};
 
   return (
     <div className="sidebar">
@@ -69,9 +74,9 @@ function Sidebar() {
 
       </ul>
 
-      <button className="logout-btn" onClick={logout}>
-        🚪 Logout
-      </button>
+    <button onClick={handleLogout}>
+    Logout
+</button>
 
     </div>
   );
