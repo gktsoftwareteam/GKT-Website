@@ -78,7 +78,7 @@
 
     letter-spacing: -2px;
 
-    color: #111827;
+    color: #355fbb;
 }
 
 
@@ -89,7 +89,7 @@
         linear-gradient(
             90deg,
             #7c3aed,
-            #ec4899
+            #355fbb,
         );
 
     -webkit-background-clip: text;
@@ -409,7 +409,7 @@
         linear-gradient(
             135deg,
             #6d28d9,
-            #db2777
+            #355fbb
         );
 
     box-shadow:
