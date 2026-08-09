@@ -229,7 +229,7 @@ function Contact() {
                                 </span>
 
                                 <strong>
-                                    info@gktsoftwaresolution.com
+                                    gktsoftwaresolution@gmail.com
                                 </strong>
                             </div>
 
@@ -247,7 +247,7 @@ function Contact() {
                                 </span>
 
                                 <strong>
-                                    +91 XXXXX XXXXX
+                                    +91 87783 41227
                                 </strong>
                             </div>
 
