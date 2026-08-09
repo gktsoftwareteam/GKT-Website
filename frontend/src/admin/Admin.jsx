@@ -1,19 +1,11 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import { ArrowRightIcon } from "../components/Icons";
-import "../css/admin.css";
 import Swal from "sweetalert2";
 
-// =====================================================
-// API URL
-// =====================================================
+import api from "../api";
 
-const API_URL = process.env.API_URL || "";
-
-// =====================================================
-// ADMIN LOGIN
-// =====================================================
+import { ArrowRightIcon } from "../components/Icons";
+import "../css/admin.css";
 
 function Admin() {
     const navigate = useNavigate();
@@ -22,10 +14,6 @@ function Admin() {
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
 
-    // =====================================================
-    // LOGIN
-    // =====================================================
-
     const login = async (e) => {
         e.preventDefault();
 
@@ -33,67 +21,36 @@ function Admin() {
             return;
         }
 
-        // =================================================
-        // CHECK API URL
-        // =================================================
-
-        if (!API_URL) {
-            Swal.fire({
-                title: "Configuration Error",
-                text:
-                    "Backend API URL is not configured. Please contact the administrator.",
-                icon: "error",
-            });
-
-            console.error(
-                "API_URL is not configured."
-            );
-
-            return;
-        }
-
-        // =================================================
-        // VALIDATION
-        // =================================================
-
         if (!email.trim()) {
             Swal.fire({
                 title: "Email Required",
                 text: "Please enter your email address.",
                 icon: "warning",
             });
-
             return;
         }
 
-        if (!password.trim()) {
+        if (!password) {
             Swal.fire({
                 title: "Password Required",
                 text: "Please enter your password.",
                 icon: "warning",
             });
-
             return;
         }
 
         try {
             setLoading(true);
 
-            // =================================================
-            // ADMIN LOGIN API
-            // =================================================
+            console.log(
+                "Sending admin login request..."
+            );
 
-            const response = await axios.post(
-                `${API_URL}/api/admin/login`,
+            const response = await api.post(
+                "/api/admin/login",
                 {
                     email: email.trim(),
                     password: password,
-                },
-                {
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    timeout: 15000,
                 }
             );
 
@@ -102,30 +59,21 @@ function Admin() {
                 response.data
             );
 
-            // =================================================
-            // GET TOKEN
-            // =================================================
-
             const token =
                 response.data?.access_token ||
                 response.data?.token;
 
             if (!token) {
                 throw new Error(
-                    "Login succeeded but no access token was returned by the server."
+                    "No access token returned by backend."
                 );
             }
-
-            // =================================================
-            // SAVE TOKEN
-            // =================================================
 
             localStorage.setItem(
                 "token",
                 token
             );
 
-            // Optional: save admin information
             if (response.data?.admin) {
                 localStorage.setItem(
                     "admin",
@@ -135,10 +83,6 @@ function Admin() {
                 );
             }
 
-            // =================================================
-            // SUCCESS
-            // =================================================
-
             await Swal.fire({
                 title: "Welcome!",
                 text: "Login successful.",
@@ -147,22 +91,22 @@ function Admin() {
                 showConfirmButton: false,
             });
 
-            // =================================================
-            // NAVIGATE
-            // =================================================
-
             navigate("/admin/dashboard");
 
         } catch (error) {
             console.error(
                 "ADMIN LOGIN ERROR:",
-                error.response?.data || error.message
+                error
+            );
+
+            console.error(
+                "SERVER RESPONSE:",
+                error.response?.data
             );
 
             let errorMessage =
                 "Invalid email or password.";
 
-            // FastAPI validation errors
             if (
                 Array.isArray(
                     error.response?.data?.detail
@@ -170,34 +114,25 @@ function Admin() {
             ) {
                 errorMessage =
                     error.response.data.detail
-                        .map((item) =>
-                            item.msg
-                                ? item.msg
-                                : String(item)
+                        .map(
+                            (item) =>
+                                item?.msg ||
+                                String(item)
                         )
                         .join(", ");
-            }
-
-            // FastAPI normal detail
-            else if (
+            } else if (
                 error.response?.data?.detail
             ) {
-                errorMessage =
-                    error.response.data.detail;
-            }
-
-            // Network/CORS error
-            else if (
+                errorMessage = String(
+                    error.response.data.detail
+                );
+            } else if (
                 error.request &&
                 !error.response
             ) {
                 errorMessage =
-                    "Unable to connect to the backend server. Please check the API URL, Render server and CORS configuration.";
+                    "Unable to connect to the backend server. Please check the Render server and CORS configuration.";
             }
-
-            // =================================================
-            // ERROR ALERT
-            // =================================================
 
             Swal.fire({
                 title: "Login Failed",
@@ -211,18 +146,10 @@ function Admin() {
         }
     };
 
-    // =====================================================
-    // RENDER
-    // =====================================================
-
     return (
         <section className="admin">
 
             <div className="admin__grid">
-
-                {/* =================================================
-                    LEFT SIDE
-                ================================================= */}
 
                 <div className="admin__info">
 
@@ -244,22 +171,14 @@ function Admin() {
 
                 </div>
 
-                {/* =================================================
-                    RIGHT SIDE
-                ================================================= */}
-
                 <div className="admin__form">
 
                     <div className="admin__logo">
-
-                        <h2>
-                            GKT
-                        </h2>
+                        <h2>GKT</h2>
 
                         <p>
                             Software Solution
                         </p>
-
                     </div>
 
                     <h3>
@@ -267,10 +186,6 @@ function Admin() {
                     </h3>
 
                     <form onSubmit={login}>
-
-                        {/* =========================================
-                            EMAIL
-                        ========================================= */}
 
                         <div className="field">
 
@@ -295,10 +210,6 @@ function Admin() {
 
                         </div>
 
-                        {/* =========================================
-                            PASSWORD
-                        ========================================= */}
-
                         <div className="field">
 
                             <label htmlFor="admin-password">
@@ -322,22 +233,15 @@ function Admin() {
 
                         </div>
 
-                        {/* =========================================
-                            LOGIN BUTTON
-                        ========================================= */}
-
                         <button
                             className="btn-login"
                             type="submit"
                             disabled={loading}
                         >
-
                             {loading ? (
-                                <>
-                                    <span>
-                                        Logging in...
-                                    </span>
-                                </>
+                                <span>
+                                    Logging in...
+                                </span>
                             ) : (
                                 <>
                                     <span>
@@ -347,7 +251,6 @@ function Admin() {
                                     <ArrowRightIcon />
                                 </>
                             )}
-
                         </button>
 
                     </form>

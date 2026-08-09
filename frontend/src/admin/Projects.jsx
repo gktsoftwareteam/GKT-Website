@@ -4,14 +4,19 @@ import Swal from "sweetalert2";
 
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
-
+import api from "../api";
 import "../css/projects.css";
 
 // =====================================================
-// API URL
+// API BASE URL
 // =====================================================
 
-const API_URL = `${process.env.REACT_APP_API_URL}/projects`;
+const API_BASE_URL = (
+    process.env.REACT_APP_API_URL ||
+    "https://gkt-website.onrender.com"
+).replace(/\/+$/, "");
+
+const API_URL = `${API_BASE_URL}/api/projects`;
 
 // =====================================================
 // EMPTY PROJECT
@@ -32,20 +37,18 @@ const EMPTY_PROJECT = {
 
 function Projects() {
     const [projects, setProjects] = useState([]);
-
     const [search, setSearch] = useState("");
-
     const [loading, setLoading] = useState(true);
 
     const [showModal, setShowModal] = useState(false);
-
     const [showViewModal, setShowViewModal] = useState(false);
 
     const [editingProject, setEditingProject] = useState(null);
-
     const [selectedProject, setSelectedProject] = useState(null);
 
-    const [form, setForm] = useState({ ...EMPTY_PROJECT });
+    const [form, setForm] = useState({
+        ...EMPTY_PROJECT,
+    });
 
     const [saving, setSaving] = useState(false);
 
@@ -63,8 +66,32 @@ function Projects() {
         return {
             headers: {
                 Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
             },
         };
+    };
+
+    // =====================================================
+    // CHECK TOKEN
+    // =====================================================
+
+    const checkAuthentication = () => {
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+            Swal.fire({
+                icon: "warning",
+                title: "Login Required",
+                text: "Your admin session has expired. Please login again.",
+                confirmButtonText: "Login",
+            }).then(() => {
+                window.location.href = "/admin";
+            });
+
+            return false;
+        }
+
+        return true;
     };
 
     // =====================================================
@@ -72,34 +99,65 @@ function Projects() {
     // =====================================================
 
     const fetchProjects = useCallback(async () => {
+        if (!checkAuthentication()) {
+            setLoading(false);
+            return;
+        }
+
         try {
             setLoading(true);
+
+            console.log("Fetching projects from:", API_URL);
 
             const response = await axios.get(
                 API_URL,
                 getConfig()
             );
 
-            setProjects(
-                Array.isArray(response.data)
-                    ? response.data
-                    : []
+            console.log(
+                "PROJECTS RESPONSE:",
+                response.data
             );
+
+            if (Array.isArray(response.data)) {
+                setProjects(response.data);
+            } else if (Array.isArray(response.data?.projects)) {
+                setProjects(response.data.projects);
+            } else {
+                setProjects([]);
+            }
+
         } catch (error) {
             console.error(
                 "FETCH PROJECTS ERROR:",
                 error.response?.data || error.message
             );
 
+            if (error.response?.status === 401) {
+                localStorage.removeItem("token");
+
+                Swal.fire({
+                    icon: "warning",
+                    title: "Session Expired",
+                    text: "Please login again.",
+                    confirmButtonText: "Login",
+                }).then(() => {
+                    window.location.href = "/admin";
+                });
+
+                return;
+            }
+
             setProjects([]);
 
             Swal.fire({
                 icon: "error",
-                title: "Unable to load projects",
+                title: "Unable to Load Projects",
                 text:
                     error.response?.data?.detail ||
                     "Could not connect to the backend.",
             });
+
         } finally {
             setLoading(false);
         }
@@ -118,7 +176,9 @@ function Projects() {
     // =====================================================
 
     const filteredProjects = projects.filter((project) => {
-        const searchText = search.toLowerCase().trim();
+        const searchText = search
+            .toLowerCase()
+            .trim();
 
         if (!searchText) {
             return true;
@@ -193,7 +253,7 @@ function Projects() {
     };
 
     // =====================================================
-    // CLOSE ADD / EDIT MODAL
+    // CLOSE MODAL
     // =====================================================
 
     const closeModal = () => {
@@ -202,7 +262,6 @@ function Projects() {
         }
 
         setShowModal(false);
-
         setEditingProject(null);
 
         setForm({
@@ -217,14 +276,14 @@ function Projects() {
     const handleSave = async (e) => {
         e.preventDefault();
 
-        // =================================================
-        // VALIDATION
-        // =================================================
+        if (!checkAuthentication()) {
+            return;
+        }
 
         if (!form.name.trim()) {
             Swal.fire({
                 icon: "warning",
-                title: "Project name required",
+                title: "Project Name Required",
                 text: "Please enter the project name.",
             });
 
@@ -234,7 +293,7 @@ function Projects() {
         if (!form.client.trim()) {
             Swal.fire({
                 icon: "warning",
-                title: "Client required",
+                title: "Client Required",
                 text: "Please enter the client name.",
             });
 
@@ -244,7 +303,7 @@ function Projects() {
         if (!form.developer.trim()) {
             Swal.fire({
                 icon: "warning",
-                title: "Developer required",
+                title: "Developer Required",
                 text: "Please enter the developer name.",
             });
 
@@ -255,10 +314,15 @@ function Projects() {
             setSaving(true);
 
             // =================================================
-            // UPDATE PROJECT
+            // UPDATE
             // =================================================
 
             if (editingProject) {
+                console.log(
+                    "Updating project:",
+                    editingProject._id
+                );
+
                 await axios.put(
                     `${API_URL}/${editingProject._id}`,
                     form,
@@ -267,21 +331,25 @@ function Projects() {
 
                 await fetchProjects();
 
-                Swal.fire({
+                await Swal.fire({
                     icon: "success",
-                    title: "Project updated",
-                    text:
-                        "Project details updated successfully.",
+                    title: "Project Updated",
+                    text: "Project details updated successfully.",
                     timer: 1500,
                     showConfirmButton: false,
                 });
             }
 
             // =================================================
-            // CREATE PROJECT
+            // CREATE
             // =================================================
 
             else {
+                console.log(
+                    "Creating project:",
+                    form
+                );
+
                 await axios.post(
                     API_URL,
                     form,
@@ -290,30 +358,45 @@ function Projects() {
 
                 await fetchProjects();
 
-                Swal.fire({
+                await Swal.fire({
                     icon: "success",
-                    title: "Project added",
-                    text:
-                        "Project has been added successfully.",
+                    title: "Project Added",
+                    text: "Project has been added successfully.",
                     timer: 1500,
                     showConfirmButton: false,
                 });
             }
 
             closeModal();
+
         } catch (error) {
             console.error(
                 "SAVE PROJECT ERROR:",
                 error.response?.data || error.message
             );
 
+            if (error.response?.status === 401) {
+                localStorage.removeItem("token");
+
+                Swal.fire({
+                    icon: "warning",
+                    title: "Session Expired",
+                    text: "Please login again.",
+                }).then(() => {
+                    window.location.href = "/admin";
+                });
+
+                return;
+            }
+
             Swal.fire({
                 icon: "error",
-                title: "Unable to save project",
+                title: "Unable to Save Project",
                 text:
                     error.response?.data?.detail ||
                     "Something went wrong while saving the project.",
             });
+
         } finally {
             setSaving(false);
         }
@@ -333,12 +416,16 @@ function Projects() {
     // =====================================================
 
     const handleDelete = async (project) => {
+        if (!checkAuthentication()) {
+            return;
+        }
+
         const result = await Swal.fire({
-            title: "Delete project?",
+            title: "Delete Project?",
             text: `Are you sure you want to delete "${project.name}"?`,
             icon: "warning",
             showCancelButton: true,
-            confirmButtonText: "Yes, delete",
+            confirmButtonText: "Yes, Delete",
             cancelButtonText: "Cancel",
         });
 
@@ -361,15 +448,30 @@ function Projects() {
                 timer: 1500,
                 showConfirmButton: false,
             });
+
         } catch (error) {
             console.error(
                 "DELETE PROJECT ERROR:",
                 error.response?.data || error.message
             );
 
+            if (error.response?.status === 401) {
+                localStorage.removeItem("token");
+
+                Swal.fire({
+                    icon: "warning",
+                    title: "Session Expired",
+                    text: "Please login again.",
+                }).then(() => {
+                    window.location.href = "/admin";
+                });
+
+                return;
+            }
+
             Swal.fire({
                 icon: "error",
-                title: "Delete failed",
+                title: "Delete Failed",
                 text:
                     error.response?.data?.detail ||
                     "Unable to delete the project.",
@@ -385,11 +487,11 @@ function Projects() {
         project,
         newStatus
     ) => {
-        const oldStatus = project.status;
+        if (!checkAuthentication()) {
+            return;
+        }
 
-        // =================================================
-        // OPTIMISTIC UPDATE
-        // =================================================
+        const oldStatus = project.status;
 
         setProjects((previous) =>
             previous.map((item) =>
@@ -410,15 +512,12 @@ function Projects() {
                 },
                 getConfig()
             );
+
         } catch (error) {
             console.error(
                 "STATUS UPDATE ERROR:",
                 error.response?.data || error.message
             );
-
-            // =================================================
-            // RESTORE OLD STATUS
-            // =================================================
 
             setProjects((previous) =>
                 previous.map((item) =>
@@ -431,9 +530,23 @@ function Projects() {
                 )
             );
 
+            if (error.response?.status === 401) {
+                localStorage.removeItem("token");
+
+                Swal.fire({
+                    icon: "warning",
+                    title: "Session Expired",
+                    text: "Please login again.",
+                }).then(() => {
+                    window.location.href = "/admin";
+                });
+
+                return;
+            }
+
             Swal.fire({
                 icon: "error",
-                title: "Status update failed",
+                title: "Status Update Failed",
                 text:
                     error.response?.data?.detail ||
                     "Unable to update project status.",
@@ -465,15 +578,19 @@ function Projects() {
                 <div className="dashboard-content">
                     <div className="projects-page">
 
-                        {/* ================= HEADER ================= */}
+                        {/* HEADER */}
 
                         <div className="projects-header">
                             <div>
-                                <h2>📁 Projects</h2>
+                                <h2>
+                                    📁 Projects
+                                </h2>
 
                                 <p>
-                                    Manage projects, developers,
-                                    deadlines and project progress.
+                                    Manage projects,
+                                    developers,
+                                    deadlines and
+                                    project progress.
                                 </p>
                             </div>
 
@@ -485,7 +602,7 @@ function Projects() {
                             </button>
                         </div>
 
-                        {/* ================= SEARCH ================= */}
+                        {/* SEARCH */}
 
                         <input
                             className="project-search"
@@ -493,11 +610,13 @@ function Projects() {
                             placeholder="Search projects, clients, developers..."
                             value={search}
                             onChange={(e) =>
-                                setSearch(e.target.value)
+                                setSearch(
+                                    e.target.value
+                                )
                             }
                         />
 
-                        {/* ================= TABLE ================= */}
+                        {/* TABLE */}
 
                         <div className="table-container">
                             <table>
@@ -524,8 +643,7 @@ function Projects() {
                                                 Loading projects...
                                             </td>
                                         </tr>
-                                    ) : filteredProjects.length ===
-                                      0 ? (
+                                    ) : filteredProjects.length === 0 ? (
                                         <tr>
                                             <td
                                                 colSpan="8"
@@ -538,10 +656,7 @@ function Projects() {
                                         </tr>
                                     ) : (
                                         filteredProjects.map(
-                                            (
-                                                project,
-                                                index
-                                            ) => {
+                                            (project, index) => {
                                                 const progress =
                                                     Math.min(
                                                         100,
@@ -562,15 +677,9 @@ function Projects() {
                                                             index
                                                         }
                                                     >
-
-                                                        {/* ID */}
-
                                                         <td>
-                                                            {index +
-                                                                1}
+                                                            {index + 1}
                                                         </td>
-
-                                                        {/* PROJECT */}
 
                                                         <td>
                                                             <strong>
@@ -580,28 +689,20 @@ function Projects() {
                                                             </strong>
                                                         </td>
 
-                                                        {/* CLIENT */}
-
                                                         <td>
                                                             {project.client ||
                                                                 "-"}
                                                         </td>
-
-                                                        {/* DEVELOPER */}
 
                                                         <td>
                                                             {project.developer ||
                                                                 "-"}
                                                         </td>
 
-                                                        {/* DEADLINE */}
-
                                                         <td>
                                                             {project.deadline ||
                                                                 "-"}
                                                         </td>
-
-                                                        {/* PROGRESS */}
 
                                                         <td>
                                                             <div className="progress-wrapper">
@@ -623,8 +724,6 @@ function Projects() {
                                                             </div>
                                                         </td>
 
-                                                        {/* STATUS */}
-
                                                         <td>
                                                             <select
                                                                 className={`project-status ${getStatusClass(
@@ -639,9 +738,7 @@ function Projects() {
                                                                 ) =>
                                                                     handleStatusChange(
                                                                         project,
-                                                                        e
-                                                                            .target
-                                                                            .value
+                                                                        e.target.value
                                                                     )
                                                                 }
                                                             >
@@ -666,8 +763,6 @@ function Projects() {
                                                                 </option>
                                                             </select>
                                                         </td>
-
-                                                        {/* ACTIONS */}
 
                                                         <td>
                                                             <div className="project-actions">
@@ -719,9 +814,9 @@ function Projects() {
                 </div>
             </div>
 
-            {/* =================================================
+            {/* =====================================================
                 ADD / EDIT MODAL
-            ================================================= */}
+            ===================================================== */}
 
             {showModal && (
                 <div className="modal-overlay">
@@ -879,9 +974,9 @@ function Projects() {
                 </div>
             )}
 
-            {/* =================================================
+            {/* =====================================================
                 VIEW MODAL
-            ================================================= */}
+            ===================================================== */}
 
             {showViewModal &&
                 selectedProject && (
@@ -897,9 +992,7 @@ function Projects() {
                                     type="button"
                                     className="modal-close"
                                     onClick={() =>
-                                        setShowViewModal(
-                                            false
-                                        )
+                                        setShowViewModal(false)
                                     }
                                 >
                                     ×
@@ -983,8 +1076,10 @@ function Projects() {
                                             selectedProject.status
                                         )}`}
                                     >
-                                        {selectedProject.status ||
-                                            "Pending"}
+                                        {
+                                            selectedProject.status ||
+                                            "Pending"
+                                        }
                                     </span>
                                 </div>
 
@@ -996,15 +1091,14 @@ function Projects() {
                                     type="button"
                                     className="close-btn"
                                     onClick={() =>
-                                        setShowViewModal(
-                                            false
-                                        )
+                                        setShowViewModal(false)
                                     }
                                 >
                                     Close
                                 </button>
 
                             </div>
+
                         </div>
                     </div>
                 )}

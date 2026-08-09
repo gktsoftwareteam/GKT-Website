@@ -1,21 +1,8 @@
 import React, { useState } from "react";
-import axios from "axios";
 import Swal from "sweetalert2";
+import api from "../api";
 
 import "../css/contact.css";
-
-// =====================================================
-// API URL
-// =====================================================
-
-const API_URL = (
-    process.env.API_URL ||
-    "https://gkt-website.onrender.com"
-).replace(/\/+$/, "");
-
-// =====================================================
-// INITIAL FORM
-// =====================================================
 
 const INITIAL_FORM = {
     name: "",
@@ -25,24 +12,18 @@ const INITIAL_FORM = {
     message: "",
 };
 
-// =====================================================
-// CONTACT COMPONENT
-// =====================================================
-
 function Contact() {
-
     const [form, setForm] = useState({
         ...INITIAL_FORM,
     });
 
     const [loading, setLoading] = useState(false);
 
-    // =================================================
+    // =====================================================
     // HANDLE INPUT
-    // =================================================
+    // =====================================================
 
     const handleChange = (e) => {
-
         const { name, value } = e.target;
 
         setForm((previous) => ({
@@ -51,31 +32,26 @@ function Contact() {
         }));
     };
 
-    // =================================================
-    // VALIDATE FORM
-    // =================================================
+    // =====================================================
+    // VALIDATE
+    // =====================================================
 
     const validateForm = () => {
-
         if (!form.name.trim()) {
-
             Swal.fire({
                 icon: "warning",
                 title: "Name Required",
                 text: "Please enter your name.",
             });
-
             return false;
         }
 
         if (!form.email.trim()) {
-
             Swal.fire({
                 icon: "warning",
                 title: "Email Required",
                 text: "Please enter your email address.",
             });
-
             return false;
         }
 
@@ -83,58 +59,49 @@ function Contact() {
             /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
         if (!emailRegex.test(form.email.trim())) {
-
             Swal.fire({
                 icon: "warning",
                 title: "Invalid Email",
                 text: "Please enter a valid email address.",
             });
-
             return false;
         }
 
         if (!form.phone.trim()) {
-
             Swal.fire({
                 icon: "warning",
                 title: "Phone Required",
                 text: "Please enter your phone number.",
             });
-
             return false;
         }
 
         if (!form.service.trim()) {
-
             Swal.fire({
                 icon: "warning",
                 title: "Service Required",
                 text: "Please select a service.",
             });
-
             return false;
         }
 
         if (!form.message.trim()) {
-
             Swal.fire({
                 icon: "warning",
                 title: "Message Required",
                 text: "Please enter your message.",
             });
-
             return false;
         }
 
         return true;
     };
 
-    // =================================================
-    // SUBMIT ENQUIRY
-    // =================================================
+    // =====================================================
+    // SUBMIT
+    // =====================================================
 
     const handleSubmit = async (e) => {
-
         e.preventDefault();
 
         if (loading) {
@@ -145,53 +112,22 @@ function Contact() {
             return;
         }
 
-        // =================================================
-        // CHECK API URL
-        // =================================================
-
-        if (!API_URL) {
-
-            console.error(
-                "API_URL is not configured."
-            );
-
-            Swal.fire({
-                icon: "error",
-                title: "Configuration Error",
-                text:
-                    "Backend API URL is not configured.",
-            });
-
-            return;
-        }
-
         try {
-
             setLoading(true);
 
             console.log(
                 "Sending enquiry to:",
-                `${API_URL}/api/enquiries`
+                "/api/enquiries"
             );
 
-            // =================================================
-            // SEND TO FASTAPI
-            // =================================================
-
-            const response = await axios.post(
-                `${API_URL}/api/enquiries`,
+            const response = await api.post(
+                "/api/enquiries",
                 {
                     name: form.name.trim(),
                     email: form.email.trim(),
                     phone: form.phone.trim(),
                     service: form.service.trim(),
                     message: form.message.trim(),
-                },
-                {
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    timeout: 15000,
                 }
             );
 
@@ -199,10 +135,6 @@ function Contact() {
                 "ENQUIRY RESPONSE:",
                 response.data
             );
-
-            // =================================================
-            // SUCCESS
-            // =================================================
 
             await Swal.fire({
                 icon: "success",
@@ -212,16 +144,10 @@ function Contact() {
                 confirmButtonText: "OK",
             });
 
-            // =================================================
-            // RESET
-            // =================================================
-
             setForm({
                 ...INITIAL_FORM,
             });
-
         } catch (error) {
-
             console.error(
                 "CONTACT FORM ERROR:",
                 error
@@ -235,53 +161,35 @@ function Contact() {
             let errorMessage =
                 "Unable to submit your enquiry. Please try again.";
 
-            // FastAPI validation error
             if (
                 Array.isArray(
                     error.response?.data?.detail
                 )
             ) {
-
                 errorMessage =
                     error.response.data.detail
-                        .map((item) =>
-                            item.msg ||
-                            String(item)
+                        .map(
+                            (item) =>
+                                item?.msg ||
+                                String(item)
                         )
                         .join(", ");
-
-            }
-
-            // FastAPI normal error
-            else if (
+            } else if (
                 error.response?.data?.detail
             ) {
-
-                errorMessage =
-                    String(
-                        error.response.data.detail
-                    );
-
-            }
-
-            // Network error
-            else if (
+                errorMessage = String(
+                    error.response.data.detail
+                );
+            } else if (
                 error.code === "ERR_NETWORK"
             ) {
-
                 errorMessage =
-                    "Cannot connect to the backend server. Please check whether the backend is running.";
-
-            }
-
-            // Timeout
-            else if (
+                    "Unable to connect to the backend server. Please check the Render server and CORS configuration.";
+            } else if (
                 error.code === "ECONNABORTED"
             ) {
-
                 errorMessage =
-                    "The server took too long to respond. Please try again.";
-
+                    "The backend server took too long to respond.";
             }
 
             Swal.fire({
@@ -290,29 +198,23 @@ function Contact() {
                 text: errorMessage,
                 confirmButtonText: "Try Again",
             });
-
         } finally {
-
             setLoading(false);
         }
     };
 
-    // =================================================
+    // =====================================================
     // RENDER
-    // =================================================
+    // =====================================================
 
     return (
-
         <section
             className="contact-section"
             id="contact"
         >
-
             <div className="contact-container">
 
-                {/* =================================================
-                    LEFT SIDE
-                ================================================= */}
+                {/* LEFT */}
 
                 <div className="contact-info">
 
@@ -332,65 +234,51 @@ function Contact() {
                         team will get back to you.
                     </p>
 
-                    {/* CONTACT DETAILS */}
-
                     <div className="contact-details">
 
                         <div className="contact-detail-item">
-
                             <div className="contact-detail-icon">
                                 ✉
                             </div>
 
                             <div>
                                 <span>Email</span>
-
                                 <strong>
                                     info@gktsoftwaresolution.com
                                 </strong>
                             </div>
-
                         </div>
 
                         <div className="contact-detail-item">
-
                             <div className="contact-detail-icon">
                                 ☎
                             </div>
 
                             <div>
                                 <span>Phone</span>
-
                                 <strong>
                                     +91 XXXXX XXXXX
                                 </strong>
                             </div>
-
                         </div>
 
                         <div className="contact-detail-item">
-
                             <div className="contact-detail-icon">
                                 📍
                             </div>
 
                             <div>
                                 <span>Location</span>
-
                                 <strong>
                                     Tamil Nadu, India
                                 </strong>
                             </div>
-
                         </div>
 
                     </div>
-
                 </div>
 
-                {/* =================================================
-                    CONTACT FORM
-                ================================================= */}
+                {/* FORM */}
 
                 <div className="contact-form-wrapper">
 
@@ -401,7 +289,6 @@ function Contact() {
                     >
 
                         <div className="form-title">
-
                             <h3>
                                 Send Us an Enquiry
                             </h3>
@@ -410,13 +297,9 @@ function Contact() {
                                 Tell us about your project
                                 and requirements.
                             </p>
-
                         </div>
 
-                        {/* NAME */}
-
                         <div className="form-group">
-
                             <label htmlFor="contact-name">
                                 Full Name
                             </label>
@@ -432,13 +315,9 @@ function Contact() {
                                 disabled={loading}
                                 required
                             />
-
                         </div>
 
-                        {/* EMAIL */}
-
                         <div className="form-group">
-
                             <label htmlFor="contact-email">
                                 Email Address
                             </label>
@@ -454,13 +333,9 @@ function Contact() {
                                 disabled={loading}
                                 required
                             />
-
                         </div>
 
-                        {/* PHONE */}
-
                         <div className="form-group">
-
                             <label htmlFor="contact-phone">
                                 Phone Number
                             </label>
@@ -476,13 +351,9 @@ function Contact() {
                                 disabled={loading}
                                 required
                             />
-
                         </div>
 
-                        {/* SERVICE */}
-
                         <div className="form-group">
-
                             <label htmlFor="contact-service">
                                 Service
                             </label>
@@ -495,7 +366,6 @@ function Contact() {
                                 disabled={loading}
                                 required
                             >
-
                                 <option value="Software Development">
                                     Software Development
                                 </option>
@@ -527,15 +397,10 @@ function Contact() {
                                 <option value="Other">
                                     Other
                                 </option>
-
                             </select>
-
                         </div>
 
-                        {/* MESSAGE */}
-
                         <div className="form-group">
-
                             <label htmlFor="contact-message">
                                 Message
                             </label>
@@ -550,39 +415,26 @@ function Contact() {
                                 disabled={loading}
                                 required
                             />
-
                         </div>
-
-                        {/* SUBMIT */}
 
                         <button
                             type="submit"
                             className="contact-submit-btn"
                             disabled={loading}
                         >
-
                             {loading ? (
-
                                 <>
                                     <span className="submit-spinner">
                                         ⟳
                                     </span>
-
                                     Sending...
                                 </>
-
                             ) : (
-
                                 <>
                                     Send Enquiry
-
-                                    <span>
-                                        →
-                                    </span>
+                                    <span>→</span>
                                 </>
-
                             )}
-
                         </button>
 
                         <p className="contact-form-note">
@@ -592,11 +444,9 @@ function Contact() {
                         </p>
 
                     </form>
-
                 </div>
 
             </div>
-
         </section>
     );
 }

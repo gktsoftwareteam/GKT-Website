@@ -3,6 +3,7 @@ import axios from "axios";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import "../css/analytics.css";
+import api from "../api";
 
 // =====================================================
 // API URL

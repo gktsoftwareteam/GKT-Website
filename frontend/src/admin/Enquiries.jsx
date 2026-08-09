@@ -1,566 +1,751 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import Swal from "sweetalert2";
 
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
+import api from "../api";
 
 import "../css/enquiries.css";
 
-const API_URL =
-  process.env.REACT_APP_API_URL || "http://127.0.0.1:8000/api";
-
 function Enquiries() {
-  const [enquiries, setEnquiries] = useState([]);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [loading, setLoading] = useState(true);
+    const [enquiries, setEnquiries] = useState([]);
+    const [search, setSearch] = useState("");
+    const [statusFilter, setStatusFilter] = useState("All");
+    const [loading, setLoading] = useState(true);
 
-  const [selectedEnquiry, setSelectedEnquiry] = useState(null);
-  const [showViewModal, setShowViewModal] = useState(false);
+    const [selectedEnquiry, setSelectedEnquiry] =
+        useState(null);
 
-  const [replyEnquiry, setReplyEnquiry] = useState(null);
-  const [replyMessage, setReplyMessage] = useState("");
-  const [sendingReply, setSendingReply] = useState(false);
+    const [showViewModal, setShowViewModal] =
+        useState(false);
 
-  const fetchEnquiries = async () => {
-    try {
-      setLoading(true);
+    const [replyEnquiry, setReplyEnquiry] =
+        useState(null);
 
-      const response = await axios.get(
-        `${API_URL}/enquiries`
-      );
+    const [replyMessage, setReplyMessage] =
+        useState("");
 
-      setEnquiries(response.data || []);
-    } catch (error) {
-      console.error(
-        "FETCH ENQUIRIES ERROR:",
-        error.response?.data || error.message
-      );
+    const [sendingReply, setSendingReply] =
+        useState(false);
 
-      Swal.fire({
-        icon: "error",
-        title: "Unable to load enquiries",
-        text:
-          error.response?.data?.detail ||
-          "Could not connect to the backend.",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+    // =====================================================
+    // FETCH ENQUIRIES
+    // =====================================================
 
-  useEffect(() => {
-    fetchEnquiries();
-  }, []);
+    const fetchEnquiries = async () => {
+        try {
+            setLoading(true);
 
-  const filteredEnquiries = enquiries.filter((item) => {
-    const searchText = search.toLowerCase();
+            const response = await api.get("/enquiries");
 
-    const matchesSearch =
-      String(item.name || "")
-        .toLowerCase()
-        .includes(searchText) ||
-      String(item.email || "")
-        .toLowerCase()
-        .includes(searchText) ||
-      String(item.phone || "")
-        .toLowerCase()
-        .includes(searchText) ||
-      String(item.service || "")
-        .toLowerCase()
-        .includes(searchText);
+            console.log(
+                "ENQUIRIES RESPONSE:",
+                response.data
+            );
 
-    const matchesStatus =
-      statusFilter === "All" ||
-      item.status === statusFilter;
+            setEnquiries(
+                Array.isArray(response.data)
+                    ? response.data
+                    : []
+            );
+        } catch (error) {
+            console.error(
+                "FETCH ENQUIRIES ERROR:",
+                error.response?.data || error.message
+            );
 
-    return matchesSearch && matchesStatus;
-  });
+            if (error.response?.status === 401) {
+                Swal.fire({
+                    icon: "warning",
+                    title: "Session expired",
+                    text: "Please login again.",
+                });
 
-  const handleView = (item) => {
-    setSelectedEnquiry(item);
-    setShowViewModal(true);
-  };
+                localStorage.removeItem("token");
 
-  const handleReply = (item) => {
-    setReplyEnquiry(item);
-    setReplyMessage("");
-  };
+                window.location.href = "/admin";
+                return;
+            }
 
-  const sendReply = async () => {
-    if (!replyMessage.trim()) {
-      Swal.fire({
-        icon: "warning",
-        title: "Message required",
-        text: "Please enter a reply message.",
-      });
-      return;
-    }
-
-    try {
-      setSendingReply(true);
-
-      await axios.post(
-        `${API_URL}/enquiries/${replyEnquiry._id}/reply`,
-        {
-          message: replyMessage,
+            Swal.fire({
+                icon: "error",
+                title: "Unable to load enquiries",
+                text:
+                    error.response?.data?.detail ||
+                    "Could not connect to the backend.",
+            });
+        } finally {
+            setLoading(false);
         }
-      );
+    };
 
-      Swal.fire({
-        icon: "success",
-        title: "Reply sent",
-        text: "Your reply has been sent successfully.",
-        timer: 1500,
-        showConfirmButton: false,
-      });
+    // =====================================================
+    // LOAD
+    // =====================================================
 
-      setReplyEnquiry(null);
-      setReplyMessage("");
-    } catch (error) {
-      console.error(
-        "REPLY ERROR:",
-        error.response?.data || error.message
-      );
+    useEffect(() => {
+        fetchEnquiries();
+    }, []);
 
-      Swal.fire({
-        icon: "error",
-        title: "Reply failed",
-        text:
-          error.response?.data?.detail ||
-          "Unable to send the reply.",
-      });
-    } finally {
-      setSendingReply(false);
-    }
-  };
+    // =====================================================
+    // SEARCH + FILTER
+    // =====================================================
 
-  const handleConvert = async (item) => {
-    const result = await Swal.fire({
-      title: "Convert to client?",
-      text: `${item.name} will be added to Clients.`,
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonText: "Convert",
-      cancelButtonText: "Cancel",
-    });
+    const filteredEnquiries = enquiries.filter(
+        (item) => {
+            const searchText =
+                search.toLowerCase().trim();
 
-    if (!result.isConfirmed) {
-      return;
-    }
+            const matchesSearch =
+                String(item.name || "")
+                    .toLowerCase()
+                    .includes(searchText) ||
+                String(item.email || "")
+                    .toLowerCase()
+                    .includes(searchText) ||
+                String(item.phone || "")
+                    .toLowerCase()
+                    .includes(searchText) ||
+                String(item.service || "")
+                    .toLowerCase()
+                    .includes(searchText);
 
-    try {
-      await axios.post(
-        `${API_URL}/enquiries/${item._id}/convert`
-      );
+            const matchesStatus =
+                statusFilter === "All" ||
+                item.status === statusFilter;
 
-      setEnquiries((previous) =>
-        previous.filter(
-          (enquiry) => enquiry._id !== item._id
-        )
-      );
-
-      Swal.fire({
-        icon: "success",
-        title: "Converted!",
-        text: "Enquiry has been converted to a client.",
-        timer: 1600,
-        showConfirmButton: false,
-      });
-    } catch (error) {
-      console.error(
-        "CONVERT ERROR:",
-        error.response?.data || error.message
-      );
-
-      Swal.fire({
-        icon: "error",
-        title: "Conversion failed",
-        text:
-          error.response?.data?.detail ||
-          "Unable to convert enquiry.",
-      });
-    }
-  };
-
-  const handleDelete = async (item) => {
-    const result = await Swal.fire({
-      title: "Delete enquiry?",
-      text: `Delete enquiry from ${item.name}?`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Yes, delete",
-      cancelButtonText: "Cancel",
-    });
-
-    if (!result.isConfirmed) {
-      return;
-    }
-
-    try {
-      await axios.delete(
-        `${API_URL}/enquiries/${item._id}`
-      );
-
-      setEnquiries((previous) =>
-        previous.filter(
-          (enquiry) => enquiry._id !== item._id
-        )
-      );
-
-      Swal.fire({
-        icon: "success",
-        title: "Deleted",
-        text: "Enquiry deleted successfully.",
-        timer: 1400,
-        showConfirmButton: false,
-      });
-    } catch (error) {
-      console.error(
-        "DELETE ENQUIRY ERROR:",
-        error.response?.data || error.message
-      );
-
-      Swal.fire({
-        icon: "error",
-        title: "Delete failed",
-        text:
-          error.response?.data?.detail ||
-          "Unable to delete enquiry.",
-      });
-    }
-  };
-
-  const updateStatus = async (id, status) => {
-    setEnquiries((previous) =>
-      previous.map((item) =>
-        item._id === id
-          ? { ...item, status }
-          : item
-      )
+            return (
+                matchesSearch &&
+                matchesStatus
+            );
+        }
     );
 
-    try {
-      await axios.put(
-        `${API_URL}/enquiries/${id}/status`,
-        { status }
-      );
-    } catch (error) {
-      console.error(
-        "STATUS UPDATE ERROR:",
-        error.response?.data || error.message
-      );
+    // =====================================================
+    // VIEW
+    // =====================================================
 
-      fetchEnquiries();
+    const handleView = (item) => {
+        setSelectedEnquiry(item);
+        setShowViewModal(true);
+    };
 
-      Swal.fire({
-        icon: "error",
-        title: "Status update failed",
-        text:
-          error.response?.data?.detail ||
-          "Unable to update status.",
-      });
-    }
-  };
+    // =====================================================
+    // REPLY
+    // =====================================================
 
-  return (
-    <div className="dashboard">
+    const handleReply = (item) => {
+        setReplyEnquiry(item);
+        setReplyMessage("");
+    };
 
-      <Sidebar />
+    // =====================================================
+    // SEND REPLY
+    // =====================================================
 
-      <div className="dashboard-main">
+    const sendReply = async () => {
+        if (!replyMessage.trim()) {
+            Swal.fire({
+                icon: "warning",
+                title: "Message required",
+                text: "Please enter a reply message.",
+            });
 
-        <Topbar />
+            return;
+        }
 
-        <div className="dashboard-content">
+        if (!replyEnquiry?._id) {
+            Swal.fire({
+                icon: "error",
+                title: "Invalid enquiry",
+                text: "Enquiry ID is missing.",
+            });
 
-          <div className="enquiries-page">
+            return;
+        }
 
-            <div className="page-title">
-              <h2>📩 Enquiries</h2>
-              <p>
-                Manage customer enquiries and convert
-                leads into clients.
-              </p>
-            </div>
+        try {
+            setSendingReply(true);
 
-            <div className="toolbar">
-
-              <input
-                type="text"
-                placeholder="Search enquiries..."
-                value={search}
-                onChange={(e) =>
-                  setSearch(e.target.value)
+            await api.post(
+                `/enquiries/${replyEnquiry._id}/reply`,
+                {
+                    message: replyMessage.trim(),
                 }
-              />
+            );
 
-              <select
-                value={statusFilter}
-                onChange={(e) =>
-                  setStatusFilter(e.target.value)
+            Swal.fire({
+                icon: "success",
+                title: "Reply sent",
+                text:
+                    "Your reply has been sent successfully.",
+                timer: 1500,
+                showConfirmButton: false,
+            });
+
+            setReplyEnquiry(null);
+            setReplyMessage("");
+        } catch (error) {
+            console.error(
+                "REPLY ERROR:",
+                error.response?.data ||
+                    error.message
+            );
+
+            Swal.fire({
+                icon: "error",
+                title: "Reply failed",
+                text:
+                    error.response?.data?.detail ||
+                    "Unable to send the reply.",
+            });
+        } finally {
+            setSendingReply(false);
+        }
+    };
+
+    // =====================================================
+    // CONVERT TO CLIENT
+    // =====================================================
+
+    const handleConvert = async (item) => {
+        const result = await Swal.fire({
+            title: "Convert to client?",
+            text: `${item.name} will be added to Clients.`,
+            icon: "question",
+            showCancelButton: true,
+            confirmButtonText: "Convert",
+            cancelButtonText: "Cancel",
+        });
+
+        if (!result.isConfirmed) {
+            return;
+        }
+
+        try {
+            await api.post(
+                `/enquiries/${item._id}/convert`
+            );
+
+            setEnquiries((previous) =>
+                previous.filter(
+                    (enquiry) =>
+                        enquiry._id !== item._id
+                )
+            );
+
+            Swal.fire({
+                icon: "success",
+                title: "Converted!",
+                text:
+                    "Enquiry has been converted to a client.",
+                timer: 1600,
+                showConfirmButton: false,
+            });
+        } catch (error) {
+            console.error(
+                "CONVERT ERROR:",
+                error.response?.data ||
+                    error.message
+            );
+
+            Swal.fire({
+                icon: "error",
+                title: "Conversion failed",
+                text:
+                    error.response?.data?.detail ||
+                    "Unable to convert enquiry.",
+            });
+        }
+    };
+
+    // =====================================================
+    // DELETE
+    // =====================================================
+
+    const handleDelete = async (item) => {
+        const result = await Swal.fire({
+            title: "Delete enquiry?",
+            text: `Delete enquiry from ${item.name}?`,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Yes, delete",
+            cancelButtonText: "Cancel",
+        });
+
+        if (!result.isConfirmed) {
+            return;
+        }
+
+        try {
+            await api.delete(
+                `/enquiries/${item._id}`
+            );
+
+            setEnquiries((previous) =>
+                previous.filter(
+                    (enquiry) =>
+                        enquiry._id !== item._id
+                )
+            );
+
+            Swal.fire({
+                icon: "success",
+                title: "Deleted",
+                text:
+                    "Enquiry deleted successfully.",
+                timer: 1400,
+                showConfirmButton: false,
+            });
+        } catch (error) {
+            console.error(
+                "DELETE ENQUIRY ERROR:",
+                error.response?.data ||
+                    error.message
+            );
+
+            Swal.fire({
+                icon: "error",
+                title: "Delete failed",
+                text:
+                    error.response?.data?.detail ||
+                    "Unable to delete enquiry.",
+            });
+        }
+    };
+
+    // =====================================================
+    // UPDATE STATUS
+    // =====================================================
+
+    const updateStatus = async (
+        id,
+        status
+    ) => {
+        const oldEnquiries = [...enquiries];
+
+        setEnquiries((previous) =>
+            previous.map((item) =>
+                item._id === id
+                    ? {
+                          ...item,
+                          status,
+                      }
+                    : item
+            )
+        );
+
+        try {
+            await api.put(
+                `/enquiries/${id}/status`,
+                {
+                    status,
                 }
-              >
-                <option value="All">All Status</option>
-                <option value="New">New</option>
-                <option value="In Progress">
-                  In Progress
-                </option>
-                <option value="Completed">
-                  Completed
-                </option>
-                <option value="Waiting Client">
-                  Waiting Client
-                </option>
-                <option value="Rejected">
-                  Rejected
-                </option>
-              </select>
+            );
+        } catch (error) {
+            console.error(
+                "STATUS UPDATE ERROR:",
+                error.response?.data ||
+                    error.message
+            );
 
-            </div>
+            setEnquiries(oldEnquiries);
 
-            <div className="table-container">
+            Swal.fire({
+                icon: "error",
+                title: "Status update failed",
+                text:
+                    error.response?.data?.detail ||
+                    "Unable to update status.",
+            });
+        }
+    };
 
-              <table>
+    return (
+        <>
+            <Sidebar />
 
-                <thead>
-                  <tr>
-                    <th>S.No</th>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Phone</th>
-                    <th>Service</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
+            <div className="dashboard-main">
+                <Topbar />
 
-                <tbody>
+                <div className="dashboard-content">
+                    <div className="enquiries-page">
 
-                  {loading ? (
-                    <tr>
-                      <td
-                        colSpan="7"
-                        className="no-data"
-                      >
-                        Loading enquiries...
-                      </td>
-                    </tr>
-                  ) : filteredEnquiries.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan="7"
-                        className="no-data"
-                      >
-                        No enquiries found.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredEnquiries.map(
-                      (item, index) => (
-                        <tr key={item._id}>
+                        <div className="page-title">
+                            <h2>📩 Enquiries</h2>
 
-                          <td>{index + 1}</td>
+                            <p>
+                                Manage customer enquiries
+                                and convert leads into
+                                clients.
+                            </p>
+                        </div>
 
-                          <td>{item.name}</td>
+                        {/* TOOLBAR */}
 
-                          <td>{item.email}</td>
+                        <div className="toolbar">
 
-                          <td>{item.phone || "-"}</td>
+                            <input
+                                type="text"
+                                placeholder="Search enquiries..."
+                                value={search}
+                                onChange={(e) =>
+                                    setSearch(
+                                        e.target.value
+                                    )
+                                }
+                            />
 
-                          <td>{item.service}</td>
-
-                          <td>
                             <select
-                              className="status-select"
-                              value={
-                                item.status || "New"
-                              }
-                              onChange={(e) =>
-                                updateStatus(
-                                  item._id,
-                                  e.target.value
-                                )
-                              }
+                                value={statusFilter}
+                                onChange={(e) =>
+                                    setStatusFilter(
+                                        e.target.value
+                                    )
+                                }
                             >
-                              <option>New</option>
-                              <option>
-                                In Progress
-                              </option>
-                              <option>
-                                Completed
-                              </option>
-                              <option>
-                                Waiting Client
-                              </option>
-                              <option>
-                                Rejected
-                              </option>
+                                <option value="All">
+                                    All Status
+                                </option>
+
+                                <option value="New">
+                                    New
+                                </option>
+
+                                <option value="In Progress">
+                                    In Progress
+                                </option>
+
+                                <option value="Completed">
+                                    Completed
+                                </option>
+
+                                <option value="Waiting Client">
+                                    Waiting Client
+                                </option>
+
+                                <option value="Rejected">
+                                    Rejected
+                                </option>
                             </select>
-                          </td>
 
-                          <td>
-                            <div className="action-buttons">
+                        </div>
 
-                              <button
-                                className="view-btn"
-                                onClick={() =>
-                                  handleView(item)
-                                }
-                              >
-                                View
-                              </button>
+                        {/* TABLE */}
 
-                              <button
-                                className="reply-btn"
-                                onClick={() =>
-                                  handleReply(item)
-                                }
-                              >
-                                Reply
-                              </button>
+                        <div className="table-container">
 
-                              <button
-                                className="convert-btn"
-                                onClick={() =>
-                                  handleConvert(item)
-                                }
-                              >
-                                Convert
-                              </button>
+                            <table>
 
-                              <button
-                                className="delete-btn"
-                                onClick={() =>
-                                  handleDelete(item)
-                                }
-                              >
-                                Delete
-                              </button>
+                                <thead>
+                                    <tr>
+                                        <th>S.No</th>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Phone</th>
+                                        <th>Service</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+
+                                    {loading ? (
+                                        <tr>
+                                            <td
+                                                colSpan="7"
+                                                className="no-data"
+                                            >
+                                                Loading enquiries...
+                                            </td>
+                                        </tr>
+                                    ) : filteredEnquiries.length ===
+                                      0 ? (
+                                        <tr>
+                                            <td
+                                                colSpan="7"
+                                                className="no-data"
+                                            >
+                                                No enquiries found.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        filteredEnquiries.map(
+                                            (
+                                                item,
+                                                index
+                                            ) => (
+                                                <tr
+                                                    key={
+                                                        item._id ||
+                                                        index
+                                                    }
+                                                >
+
+                                                    <td>
+                                                        {index +
+                                                            1}
+                                                    </td>
+
+                                                    <td>
+                                                        {item.name ||
+                                                            "-"}
+                                                    </td>
+
+                                                    <td>
+                                                        {item.email ||
+                                                            "-"}
+                                                    </td>
+
+                                                    <td>
+                                                        {item.phone ||
+                                                            "-"}
+                                                    </td>
+
+                                                    <td>
+                                                        {item.service ||
+                                                            "-"}
+                                                    </td>
+
+                                                    <td>
+                                                        <select
+                                                            className="status-select"
+                                                            value={
+                                                                item.status ||
+                                                                "New"
+                                                            }
+                                                            onChange={(
+                                                                e
+                                                            ) =>
+                                                                updateStatus(
+                                                                    item._id,
+                                                                    e
+                                                                        .target
+                                                                        .value
+                                                                )
+                                                            }
+                                                        >
+                                                            <option value="New">
+                                                                New
+                                                            </option>
+
+                                                            <option value="In Progress">
+                                                                In Progress
+                                                            </option>
+
+                                                            <option value="Completed">
+                                                                Completed
+                                                            </option>
+
+                                                            <option value="Waiting Client">
+                                                                Waiting Client
+                                                            </option>
+
+                                                            <option value="Rejected">
+                                                                Rejected
+                                                            </option>
+                                                        </select>
+                                                    </td>
+
+                                                    <td>
+                                                        <div className="action-buttons">
+
+                                                            <button
+                                                                className="view-btn"
+                                                                onClick={() =>
+                                                                    handleView(
+                                                                        item
+                                                                    )
+                                                                }
+                                                            >
+                                                                View
+                                                            </button>
+
+                                                            <button
+                                                                className="reply-btn"
+                                                                onClick={() =>
+                                                                    handleReply(
+                                                                        item
+                                                                    )
+                                                                }
+                                                            >
+                                                                Reply
+                                                            </button>
+
+                                                            <button
+                                                                className="convert-btn"
+                                                                onClick={() =>
+                                                                    handleConvert(
+                                                                        item
+                                                                    )
+                                                                }
+                                                            >
+                                                                Convert
+                                                            </button>
+
+                                                            <button
+                                                                className="delete-btn"
+                                                                onClick={() =>
+                                                                    handleDelete(
+                                                                        item
+                                                                    )
+                                                                }
+                                                            >
+                                                                Delete
+                                                            </button>
+
+                                                        </div>
+                                                    </td>
+
+                                                </tr>
+                                            )
+                                        )
+                                    )}
+
+                                </tbody>
+
+                            </table>
+
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            {/* VIEW MODAL */}
+
+            {showViewModal &&
+                selectedEnquiry && (
+                    <div className="modal-overlay">
+
+                        <div className="modal">
+
+                            <h2>
+                                Enquiry Details
+                            </h2>
+
+                            <p>
+                                <strong>
+                                    Name:
+                                </strong>{" "}
+                                {selectedEnquiry.name}
+                            </p>
+
+                            <p>
+                                <strong>
+                                    Email:
+                                </strong>{" "}
+                                {selectedEnquiry.email}
+                            </p>
+
+                            <p>
+                                <strong>
+                                    Phone:
+                                </strong>{" "}
+                                {selectedEnquiry.phone ||
+                                    "-"}
+                            </p>
+
+                            <p>
+                                <strong>
+                                    Service:
+                                </strong>{" "}
+                                {selectedEnquiry.service}
+                            </p>
+
+                            <p>
+                                <strong>
+                                    Message:
+                                </strong>{" "}
+                                {selectedEnquiry.message ||
+                                    "-"}
+                            </p>
+
+                            <div className="modal-buttons">
+
+                                <button
+                                    className="close-btn"
+                                    onClick={() =>
+                                        setShowViewModal(
+                                            false
+                                        )
+                                    }
+                                >
+                                    Close
+                                </button>
 
                             </div>
-                          </td>
 
-                        </tr>
-                      )
-                    )
-                  )}
+                        </div>
 
-                </tbody>
+                    </div>
+                )}
 
-              </table>
+            {/* REPLY MODAL */}
 
-            </div>
+            {replyEnquiry && (
+                <div className="modal-overlay">
 
-          </div>
+                    <div className="modal">
 
-        </div>
+                        <h2>
+                            Reply to{" "}
+                            {replyEnquiry.name}
+                        </h2>
 
-      </div>
+                        <p>
+                            {replyEnquiry.email}
+                        </p>
 
-      {showViewModal && selectedEnquiry && (
-        <div className="modal-overlay">
+                        <textarea
+                            value={replyMessage}
+                            onChange={(e) =>
+                                setReplyMessage(
+                                    e.target.value
+                                )
+                            }
+                            placeholder="Type your reply..."
+                        />
 
-          <div className="modal">
+                        <div className="modal-buttons">
 
-            <h2>Enquiry Details</h2>
+                            <button
+                                className="close-btn"
+                                onClick={() =>
+                                    setReplyEnquiry(
+                                        null
+                                    )
+                                }
+                                disabled={
+                                    sendingReply
+                                }
+                            >
+                                Cancel
+                            </button>
 
-            <p>
-              <strong>Name:</strong>{" "}
-              {selectedEnquiry.name}
-            </p>
+                            <button
+                                className="send-btn"
+                                onClick={
+                                    sendReply
+                                }
+                                disabled={
+                                    sendingReply
+                                }
+                            >
+                                {sendingReply
+                                    ? "Sending..."
+                                    : "Send Reply"}
+                            </button>
 
-            <p>
-              <strong>Email:</strong>{" "}
-              {selectedEnquiry.email}
-            </p>
+                        </div>
 
-            <p>
-              <strong>Phone:</strong>{" "}
-              {selectedEnquiry.phone || "-"}
-            </p>
+                    </div>
 
-            <p>
-              <strong>Service:</strong>{" "}
-              {selectedEnquiry.service}
-            </p>
-
-            <p>
-              <strong>Message:</strong>{" "}
-              {selectedEnquiry.message}
-            </p>
-
-            <div className="modal-buttons">
-
-              <button
-                className="close-btn"
-                onClick={() =>
-                  setShowViewModal(false)
-                }
-              >
-                Close
-              </button>
-
-            </div>
-
-          </div>
-
-        </div>
-      )}
-
-      {replyEnquiry && (
-        <div className="modal-overlay">
-
-          <div className="modal">
-
-            <h2>
-              Reply to {replyEnquiry.name}
-            </h2>
-
-            <p>
-              {replyEnquiry.email}
-            </p>
-
-            <textarea
-              value={replyMessage}
-              onChange={(e) =>
-                setReplyMessage(e.target.value)
-              }
-              placeholder="Type your reply..."
-            />
-
-            <div className="modal-buttons">
-
-              <button
-                className="close-btn"
-                onClick={() =>
-                  setReplyEnquiry(null)
-                }
-                disabled={sendingReply}
-              >
-                Cancel
-              </button>
-
-              <button
-                className="send-btn"
-                onClick={sendReply}
-                disabled={sendingReply}
-              >
-                {sendingReply
-                  ? "Sending..."
-                  : "Send Reply"}
-              </button>
-
-            </div>
-
-          </div>
-
-        </div>
-      )}
-
-    </div>
-  );
+                </div>
+            )}
+        </>
+    );
 }
 
 export default Enquiries;

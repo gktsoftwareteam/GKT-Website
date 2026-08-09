@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import "../css/settings.css";
+import api from "../api";
 
 function Settings() {
 
