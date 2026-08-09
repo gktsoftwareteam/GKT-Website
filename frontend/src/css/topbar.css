@@ -1,71 +1,134 @@
-/* =========================================
-   GKT CRM - TOPBAR
-========================================= */
+/* =====================================================
+   GKT ADMIN TOPBAR
+   ===================================================== */
 
 .topbar {
     width: 100%;
-    min-height: 72px;
 
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    min-height: 78px;
 
-    padding: 10px 30px;
+    padding: 0 30px;
+
+    box-sizing: border-box;
 
     background: #ffffff;
 
     border-bottom: 1px solid #e5e7eb;
 
-    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 20px;
 
     position: sticky;
+
     top: 0;
 
-    z-index: 1000;
-
-    box-sizing: border-box;
+    z-index: 900;
 }
 
 
-/* =========================================
+/* =====================================================
    LEFT
-========================================= */
+   ===================================================== */
 
-.topbar-left {
+.topbar__left {
     display: flex;
+
     align-items: center;
+
+    gap: 16px;
+
+    min-width: 0;
 }
 
-.topbar-brand {
-    display: flex;
+
+/* =====================================================
+   HAMBURGER
+   ===================================================== */
+
+.topbar__menu-btn {
+    display: none;
+
+    width: 42px;
+    height: 42px;
+
+    padding: 9px;
+
+    border: 1px solid #e5e7eb;
+
+    border-radius: 10px;
+
+    background: white;
+
+    cursor: pointer;
+
     flex-direction: column;
+
+    justify-content: center;
+
+    align-items: center;
+
+    gap: 5px;
+
+    transition: 0.2s ease;
 }
 
-.topbar-title {
+
+.topbar__menu-btn:hover {
+    background: #f8fafc;
+
+    border-color: #cbd5e1;
+}
+
+
+.topbar__menu-btn span {
+    display: block;
+
+    width: 20px;
+
+    height: 2px;
+
+    background: #1e293b;
+
+    border-radius: 5px;
+}
+
+
+/* =====================================================
+   TITLE
+   ===================================================== */
+
+.topbar__title h1 {
     margin: 0;
 
-    font-size: 22px;
-    line-height: 1.2;
-
-    font-weight: 800;
-
     color: #0f172a;
+
+    font-size: 22px;
+
+    font-weight: 750;
+
+    line-height: 1.2;
 }
 
-.topbar-subtitle {
-    margin: 4px 0 0;
 
-    font-size: 12px;
+.topbar__title p {
+    margin: 5px 0 0;
 
     color: #64748b;
+
+    font-size: 12px;
 }
 
 
-/* =========================================
+/* =====================================================
    RIGHT
-========================================= */
+   ===================================================== */
 
-.topbar-right {
+.topbar__right {
     display: flex;
 
     align-items: center;
@@ -74,282 +137,210 @@
 }
 
 
-/* =========================================
-   PROFILE
-========================================= */
+/* =====================================================
+   NOTIFICATION
+   ===================================================== */
 
-.topbar-profile {
+.topbar__notification {
+    position: relative;
+
+    width: 40px;
+    height: 40px;
+
+    border: 1px solid #e5e7eb;
+
+    border-radius: 10px;
+
+    background: white;
+
+    cursor: pointer;
+
     display: flex;
 
     align-items: center;
+    justify-content: center;
 
-    gap: 11px;
+    font-size: 17px;
 
-    padding: 6px 10px;
-
-    border-radius: 14px;
-
-    transition: 0.25s ease;
+    transition: 0.2s ease;
 }
 
-.topbar-profile:hover {
+
+.topbar__notification:hover {
     background: #f8fafc;
 }
 
 
-/* =========================================
-   PROFILE AVATAR
-========================================= */
+.topbar__notification b {
+    position: absolute;
 
-.profile-avatar {
-    width: 45px;
-    height: 45px;
+    top: -4px;
+    right: -4px;
 
-    min-width: 45px;
+    min-width: 17px;
+    height: 17px;
+
+    padding: 0 4px;
+
+    box-sizing: border-box;
+
+    border-radius: 20px;
+
+    background: #2563eb;
+
+    color: white;
 
     display: flex;
 
     align-items: center;
     justify-content: center;
 
-    overflow: hidden;
+    font-size: 9px;
+}
+
+
+/* =====================================================
+   DIVIDER
+   ===================================================== */
+
+.topbar__divider {
+    width: 1px;
+
+    height: 38px;
+
+    background: #e5e7eb;
+}
+
+
+/* =====================================================
+   PROFILE
+   ===================================================== */
+
+.topbar__profile {
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+}
+
+
+.topbar__avatar {
+    width: 40px;
+    height: 40px;
 
     border-radius: 50%;
 
-    background:
-        linear-gradient(
-            135deg,
-            #2563eb,
-            #7c3aed
-        );
+    background: linear-gradient(
+        135deg,
+        #2563eb,
+        #3b82f6
+    );
 
-    color: #ffffff;
+    color: white;
 
-    font-size: 16px;
+    display: flex;
 
-    font-weight: 700;
+    align-items: center;
+    justify-content: center;
 
-    box-shadow:
-        0 4px 12px rgba(37, 99, 235, 0.2);
+    font-size: 14px;
+
+    font-weight: 800;
 }
 
 
-/* Actual image */
-
-.profile-avatar img {
-    width: 100%;
-    height: 100%;
-
-    object-fit: cover;
-
-    display: block;
-}
-
-
-/* =========================================
-   PROFILE INFORMATION
-========================================= */
-
-.profile-info {
-    min-width: 170px;
-
+.topbar__user {
     display: flex;
 
     flex-direction: column;
 
-    justify-content: center;
+    min-width: 90px;
 }
 
-.profile-name {
-    font-size: 14px;
 
-    line-height: 18px;
-
-    font-weight: 700;
-
+.topbar__user strong {
     color: #0f172a;
-
-    white-space: nowrap;
-}
-
-.profile-email {
-    font-size: 12px;
-
-    line-height: 17px;
-
-    color: #64748b;
-
-    white-space: nowrap;
-
-    max-width: 210px;
-
-    overflow: hidden;
-
-    text-overflow: ellipsis;
-}
-
-.profile-role {
-    font-size: 11px;
-
-    line-height: 15px;
-
-    font-weight: 600;
-
-    color: #2563eb;
-}
-
-
-/* =========================================
-   LOGOUT
-========================================= */
-
-.logout-btn {
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    gap: 7px;
-
-    border: none;
-
-    padding: 10px 16px;
-
-    border-radius: 10px;
-
-    background: #fee2e2;
-
-    color: #dc2626;
 
     font-size: 13px;
 
     font-weight: 700;
-
-    cursor: pointer;
-
-    transition: all 0.25s ease;
-}
-
-.logout-btn:hover {
-    background: #dc2626;
-
-    color: #ffffff;
-
-    transform: translateY(-1px);
-
-    box-shadow:
-        0 7px 18px rgba(220, 38, 38, 0.2);
-}
-
-.logout-btn:active {
-    transform: translateY(0);
-}
-
-.logout-icon {
-    font-size: 17px;
-
-    line-height: 1;
 }
 
 
-/* =========================================
+.topbar__user span {
+    margin-top: 3px;
+
+    color: #64748b;
+
+    font-size: 11px;
+}
+
+
+/* =====================================================
    TABLET
-========================================= */
+   ===================================================== */
 
-@media (max-width: 992px) {
+@media (max-width: 900px) {
 
     .topbar {
-        padding: 10px 20px;
+        padding: 0 20px;
     }
 
-    .profile-info {
-        min-width: 140px;
-    }
-
-    .profile-email {
-        max-width: 160px;
+    .topbar__menu-btn {
+        display: flex;
     }
 
 }
 
 
-/* =========================================
+/* =====================================================
    MOBILE
-========================================= */
+   ===================================================== */
 
-@media (max-width: 768px) {
+@media (max-width: 600px) {
 
     .topbar {
-        min-height: 65px;
+        min-height: 68px;
 
-        padding: 8px 15px;
+        padding: 0 15px;
     }
 
-    .topbar-title {
+    .topbar__title h1 {
         font-size: 18px;
     }
 
-    .topbar-subtitle {
+    .topbar__title p {
         display: none;
     }
 
-    .topbar-right {
-        gap: 8px;
+    .topbar__right {
+        gap: 10px;
     }
 
-    .topbar-profile {
-        padding: 4px;
-    }
-
-    .profile-avatar {
-        width: 38px;
-        height: 38px;
-
-        min-width: 38px;
-    }
-
-    .profile-info {
+    .topbar__divider {
         display: none;
     }
 
-    .logout-btn {
-        padding: 9px 12px;
+    .topbar__user {
+        display: none;
+    }
 
-        font-size: 12px;
+    .topbar__avatar {
+        width: 36px;
+        height: 36px;
     }
 
 }
 
 
-/* =========================================
+/* =====================================================
    SMALL MOBILE
-========================================= */
+   ===================================================== */
 
-@media (max-width: 480px) {
+@media (max-width: 400px) {
 
-    .topbar {
-        padding: 8px 10px;
-    }
-
-    .topbar-title {
-        font-size: 16px;
-    }
-
-    .profile-avatar {
-        width: 35px;
-        height: 35px;
-
-        min-width: 35px;
-
-        font-size: 13px;
-    }
-
-    .logout-btn {
-        padding: 8px 10px;
-    }
-
-    .logout-btn span:last-child {
+    .topbar__notification {
         display: none;
     }
 

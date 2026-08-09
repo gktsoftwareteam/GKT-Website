@@ -1,98 +1,83 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React from "react";
+import { useLocation } from "react-router-dom";
+
 import "../css/topbar.css";
 
-function Topbar() {
+function Topbar({ onMenuClick }) {
+    const location = useLocation();
 
-    const navigate = useNavigate();
+    const getPageTitle = () => {
+        const path = location.pathname;
 
-    const [profile, setProfile] = useState({
-        name: "Admin",
-        email: "admin@gktsoftwaresolution.com",
-        image: ""
-    });
-
-    useEffect(() => {
-
-        const savedProfile =
-            localStorage.getItem("adminProfile");
-
-        if (savedProfile) {
-
-            try {
-
-                const parsedProfile =
-                    JSON.parse(savedProfile);
-
-                setProfile({
-                    name: parsedProfile.name || "GKT TEAM",
-                    email:
-                        parsedProfile.email ||
-                        "gktsoftwaresolution@gmail.com",
-                    image:
-                        parsedProfile.image || ""
-                });
-
-            } catch (error) {
-
-                console.error(
-                    "Failed to load admin profile:",
-                    error
-                );
-
-            }
-
+        if (path === "/admin/dashboard") {
+            return "Dashboard";
         }
 
-    }, []);
-
-
-    const logout = () => {
-
-        localStorage.removeItem("token");
-
-        navigate("/admin");
-
-    };
-
-
-    // Generate initials if no profile image exists
-    const getInitials = (name) => {
-
-        if (!name) return "A";
-
-        const words = name.trim().split(" ");
-
-        if (words.length === 1) {
-            return words[0].charAt(0).toUpperCase();
+        if (path === "/admin/enquiries") {
+            return "Enquiries";
         }
 
-        return (
-            words[0].charAt(0) +
-            words[words.length - 1].charAt(0)
-        ).toUpperCase();
+        if (path === "/admin/clients") {
+            return "Clients";
+        }
 
+        if (path === "/admin/projects") {
+            return "Projects";
+        }
+
+        if (path === "/admin/quotations") {
+            return "Quotations";
+        }
+
+        if (path === "/admin/analytics") {
+            return "Analytics";
+        }
+
+        if (path === "/admin/settings") {
+            return "Settings";
+        }
+
+        return "Admin Panel";
     };
 
+    const pageTitle = getPageTitle();
 
     return (
-
         <header className="topbar">
 
-            {/* =========================
+            {/* =================================================
                 LEFT SIDE
-            ========================= */}
+            ================================================= */}
 
-            <div className="topbar-left">
+            <div className="topbar__left">
 
-                <div className="topbar-brand">
+                {/* Hamburger */}
 
-                    <h1 className="topbar-title">
-                        GKT CRM
+                <button
+                    type="button"
+                    className="topbar__menu-btn"
+                    onClick={onMenuClick}
+                    aria-label="Open navigation menu"
+                    aria-expanded="false"
+                >
+
+                    <span></span>
+                    <span></span>
+                    <span></span>
+
+                </button>
+
+
+                {/* Page Title */}
+
+                <div className="topbar__title">
+
+                    <h1>
+                        {pageTitle}
                     </h1>
 
-                    <p className="topbar-subtitle">
-                        Software Solution Management
+                    <p>
+                        GKT Software Solution
                     </p>
 
                 </div>
@@ -100,51 +85,49 @@ function Topbar() {
             </div>
 
 
-            {/* =========================
+            {/* =================================================
                 RIGHT SIDE
-            ========================= */}
+            ================================================= */}
 
-            <div className="topbar-right">
+            <div className="topbar__right">
 
-                {/* PROFILE */}
+                {/* Notification */}
 
-                <div className="topbar-profile">
+                <button
+                    type="button"
+                    className="topbar__notification"
+                    aria-label="Notifications"
+                >
+                    <span>
+                        🔔
+                    </span>
 
-                    {/* DP */}
+                    <b>
+                        0
+                    </b>
+                </button>
 
-                    <div className="profile-avatar">
 
-                        {profile.image ? (
+                {/* Divider */}
 
-                            <img
-                                src={profile.image}
-                                alt={profile.name}
-                            />
+                <div className="topbar__divider"></div>
 
-                        ) : (
 
-                            <span>
-                                {getInitials(profile.name)}
-                            </span>
+                {/* Admin Profile */}
 
-                        )}
+                <div className="topbar__profile">
 
+                    <div className="topbar__avatar">
+                        A
                     </div>
 
+                    <div className="topbar__user">
 
-                    {/* DETAILS */}
+                        <strong>
+                            Admin
+                        </strong>
 
-                    <div className="profile-info">
-
-                        <span className="profile-name">
-                            {profile.name}
-                        </span>
-
-                        <span className="profile-email">
-                            {profile.email}
-                        </span>
-
-                        <span className="profile-role">
+                        <span>
                             Administrator
                         </span>
 
@@ -152,28 +135,9 @@ function Topbar() {
 
                 </div>
 
-
-                {/* LOGOUT */}
-
-                <button
-                    className="logout-btn"
-                    onClick={logout}
-                >
-
-                    <span className="logout-icon">
-                        ↪
-                    </span>
-
-                    <span>
-                        Logout
-                    </span>
-
-                </button>
-
             </div>
 
         </header>
-
     );
 }
 
