@@ -1,85 +1,126 @@
 import React from "react";
-import { NavLink, useNavigate } from "react-router-dom";
-import { Link } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
+
 import "../css/sidebar.css";
-import { supabase } from "../lib/supabase";
 
 function Sidebar() {
-  const navigate = useNavigate();
+    const location = useLocation();
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
+    const menuItems = [
+        {
+            name: "Dashboard",
+            path: "/admin/dashboard",
+            icon: "▣",
+        },
+        {
+            name: "Enquiries",
+            path: "/admin/enquiries",
+            icon: "✉",
+        },
+        {
+            name: "Clients",
+            path: "/admin/clients",
+            icon: "♙",
+        },
+        {
+            name: "Projects",
+            path: "/admin/projects",
+            icon: "▤",
+        },
+        {
+            name: "Quotations",
+            path: "/admin/quotations",
+            icon: "₹",
+        },
+        {
+            name: "Analytics",
+            path: "/admin/analytics",
+            icon: "▥",
+        },
+        {
+            name: "Settings",
+            path: "/admin/settings",
+            icon: "⚙",
+        },
+    ];
 
-    localStorage.removeItem("admin");
-    localStorage.removeItem("token");
+    return (
+        <aside className="sidebar">
 
-    window.location.href = "/admin";
-};
+            <div className="sidebar__logo">
+                <div className="sidebar__logo-mark">
+                    GKT
+                </div>
 
-  return (
-    <div className="sidebar">
+                <div className="sidebar__logo-text">
+                    <strong>GKT</strong>
+                    <span>Software Solution</span>
+                </div>
+            </div>
 
-      <div className="logo">
-        <h2>GKT</h2>
-        <span>Software Solution</span>
-      </div>
+            <div className="sidebar__menu">
 
-      <ul>
-          <li>
-    <NavLink to="/">
-      🏠 <span>Home</span>
-    </NavLink>
-  </li>
+                <p className="sidebar__label">
+                    MAIN MENU
+                </p>
 
-        <li>
-          <NavLink to="/admin/dashboard">
-            🏠 <span>Dashboard</span>
-          </NavLink>
-        </li>
+                <nav>
 
-        <li>
-          <NavLink to="/admin/enquiries">
-            📩 <span>Enquiries</span>
-          </NavLink>
-        </li>
+                    {menuItems.map((item) => (
 
-        <li>
-          <NavLink to="/admin/clients">
-            👥 <span>Clients</span>
-          </NavLink>
-        </li>
+                        <NavLink
+                            key={item.path}
+                            to={item.path}
+                            className={({ isActive }) =>
+                                `sidebar__link ${
+                                    isActive
+                                        ? "sidebar__link--active"
+                                        : ""
+                                }`
+                            }
+                        >
 
-        <li>
-          <NavLink to="/admin/projects">
-            📁 <span>Projects</span>
-          </NavLink>
-        </li>
-        <li>
-  <Link to="/admin/quotations">
-    📄 Quotations
-  </Link>
-</li>
+                            <span className="sidebar__icon">
+                                {item.icon}
+                            </span>
 
-        <li>
-          <NavLink to="/admin/analytics">
-            📊 <span>Analytics</span>
-          </NavLink>
-        </li>
+                            <span>
+                                {item.name}
+                            </span>
 
-        <li>
-          <NavLink to="/admin/settings">
-            ⚙️ <span>Settings</span>
-          </NavLink>
-        </li>
+                        </NavLink>
 
-      </ul>
+                    ))}
 
-    <button onClick={handleLogout}>
-    Logout
-</button>
+                </nav>
 
-    </div>
-  );
+            </div>
+
+            <div className="sidebar__bottom">
+
+                <NavLink
+                    to="/"
+                    className="sidebar__website"
+                >
+                    ← Back to Website
+                </NavLink>
+
+                <button
+                    className="sidebar__logout"
+                    onClick={() => {
+                        localStorage.removeItem("token");
+                        localStorage.removeItem("admin");
+                        window.location.href = "/admin";
+                    }}
+                >
+                    <span>↪</span>
+                    Logout
+                </button>
+
+            </div>
+
+        </aside>
+    );
 }
 
 export default Sidebar;
