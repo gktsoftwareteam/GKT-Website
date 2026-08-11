@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { MenuIcon, CloseIcon, ArrowRightIcon } from "./Icons";
+import {
+  MenuIcon,
+  CloseIcon,
+  ArrowRightIcon,
+} from "./Icons";
 import "../css/navbar.css";
 
 const NAV_LINKS = [
@@ -17,37 +21,32 @@ function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Detect page scroll
   useEffect(() => {
-    const onScroll = () => {
+    const handleScroll = () => {
       setScrolled(window.scrollY > 12);
     };
 
-    onScroll();
+    handleScroll();
 
-    window.addEventListener("scroll", onScroll, {
+    window.addEventListener("scroll", handleScroll, {
       passive: true,
     });
 
     return () => {
-      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("scroll", handleScroll);
     };
   }, []);
 
-  // Lock body scrolling when mobile menu is open
   useEffect(() => {
-    if (menuOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    document.body.style.overflow = menuOpen
+      ? "hidden"
+      : "";
 
     return () => {
       document.body.style.overflow = "";
     };
   }, [menuOpen]);
 
-  // Close menu when screen becomes desktop size
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth > 980) {
@@ -62,7 +61,6 @@ function Navbar() {
     };
   }, []);
 
-  // Close menu when ESC is pressed
   useEffect(() => {
     const handleEscape = (event) => {
       if (event.key === "Escape") {
@@ -87,9 +85,9 @@ function Navbar() {
         scrolled ? "navbar--scrolled" : ""
       } ${menuOpen ? "navbar--menu-open" : ""}`}
     >
-      <div className="container navbar__inner">
 
-        {/* Logo */}
+      <div className="navbar__inner">
+
         <Link
           to="/"
           className="navbar__brand"
@@ -103,11 +101,14 @@ function Navbar() {
           </span>
 
           <span className="navbar__brand-text">
-            GKT <em>Software Solution</em>
+            GKT{" "}
+            <em>Software Solution</em>
           </span>
         </Link>
 
+
         {/* Desktop Navigation */}
+
         <nav
           className="navbar__links"
           aria-label="Primary"
@@ -123,7 +124,9 @@ function Navbar() {
           ))}
         </nav>
 
-        {/* Desktop CTA */}
+
+        {/* Desktop Button */}
+
         <div className="navbar__actions">
           <a
             href="#contact"
@@ -131,31 +134,47 @@ function Navbar() {
             onClick={handleLinkClick}
           >
             Start a Project
+
             <ArrowRightIcon />
           </a>
         </div>
 
-        {/* Mobile Menu Button */}
+
+        {/* Mobile Button */}
+
         <button
           type="button"
           className="navbar__toggle"
           aria-label={
-            menuOpen ? "Close menu" : "Open menu"
+            menuOpen
+              ? "Close menu"
+              : "Open menu"
           }
           aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((value) => !value)}
+          onClick={() =>
+            setMenuOpen((value) => !value)
+          }
         >
-          {menuOpen ? <CloseIcon /> : <MenuIcon />}
+          {menuOpen ? (
+            <CloseIcon />
+          ) : (
+            <MenuIcon />
+          )}
         </button>
+
       </div>
 
-      {/* Mobile Navigation */}
+
+      {/* Mobile Menu */}
+
       <div
         className={`navbar__mobile ${
-          menuOpen ? "navbar__mobile--open" : ""
+          menuOpen
+            ? "navbar__mobile--open"
+            : ""
         }`}
-        aria-hidden={!menuOpen}
       >
+
         <nav aria-label="Mobile">
 
           {NAV_LINKS.map((link) => (
@@ -171,6 +190,7 @@ function Navbar() {
 
         </nav>
 
+
         <a
           href="#contact"
           className="btn btn-primary navbar__mobile-cta"
@@ -178,9 +198,12 @@ function Navbar() {
           tabIndex={menuOpen ? 0 : -1}
         >
           Start a Project
+
           <ArrowRightIcon />
         </a>
+
       </div>
+
     </header>
   );
 }
