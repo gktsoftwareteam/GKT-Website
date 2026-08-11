@@ -13,9 +13,9 @@ const CODE_LINES = [
 ];
 
 const STATS = [
-  { value: "10+", label: "Products shipped" },
+  { value: "5+", label: "Projects shipped" },
   { value: "24/7", label: "Support Availablity" },
-  { value: "98%", label: "Client retention" },
+  { value: "96%", label: "Client retention" },
 ];
 
 function useTypedCode(lines, speed = 22) {
